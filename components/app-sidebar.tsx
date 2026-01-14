@@ -1,3 +1,29 @@
+/**
+ * Application Sidebar Component
+ *
+ * Main navigation sidebar for the Veeam Single-UI application providing:
+ * - Product navigation: VBR, VRO, VBM, K10 sections with sub-pages
+ * - Administration section: Licensing, Branding, Servers, Identity
+ * - Collapsible groups with expand/collapse state persistence
+ * - Active page highlighting based on current route
+ * - Environment-aware visibility (hides products not configured)
+ *
+ * Structure:
+ * - VBR: Dashboard, Jobs, Inventory, Infrastructure, Protected Data
+ * - VRO: Dashboard, Recovery Plans
+ * - VBM: Dashboard, Jobs, Organizations, Protected Items, Infrastructure
+ * - K10: Dashboard (Kubernetes backup)
+ * - Administration: Licensing, Branding, Servers, Identity
+ *
+ * Features:
+ * - Responsive design with mobile-friendly collapsed state
+ * - Logo and branding in sidebar header
+ * - Visual indicators for active routes
+ * - Keyboard navigation support
+ *
+ * @module components/app-sidebar
+ */
+
 "use client"
 
 import * as React from "react"
@@ -195,6 +221,20 @@ const documentationItems = [
 
 // Administration Group
 const adminItems = [
+  {
+    title: "Servers",
+    icon: Server,
+    items: [
+      {
+        title: "Connections",
+        href: "/administration/servers/connections",
+      },
+      {
+        title: "Cache",
+        href: "/administration/servers/cache",
+      },
+    ]
+  },
   {
     title: "Licensing",
     href: "/administration/licensing",

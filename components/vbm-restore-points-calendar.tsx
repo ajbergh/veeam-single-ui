@@ -1,3 +1,31 @@
+/**
+ * VBM Restore Points Calendar Component
+ *
+ * Interactive calendar visualization for Veeam Backup for Microsoft 365 restore points:
+ * - Month/Week/Day views for different time scales
+ * - Visual indicators for days with restore points
+ * - Popover details showing M365-specific information
+ * - Organization and repository name lookups
+ *
+ * Features:
+ * - Three view modes: Month (default), Week, Day
+ * - Color-coded restore point counts per day
+ * - Popover on click showing restore point details:
+ *   - Organization, Repository, Job name
+ *   - Creation time and type
+ * - Today highlighting
+ * - Navigation controls
+ *
+ * Props:
+ * - data: Array of VBMRestorePoint objects
+ * - lookupData: Optional maps for organization/repository/job name resolution
+ *
+ * M365 Item Types:
+ * - Mailbox, OneDrive, SharePoint Site, Teams
+ *
+ * @module components/vbm-restore-points-calendar
+ */
+
 "use client"
 
 import { useState } from "react"

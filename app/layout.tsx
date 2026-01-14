@@ -1,12 +1,28 @@
+/**
+ * Root Layout
+ *
+ * Application root layout providing:
+ * - Theme configuration (preset, scale, radius) from cookies
+ * - Font loading (Geist Sans and Mono)
+ * - Provider hierarchy (Theme, ActiveTheme, Sidebar)
+ * - Conditional layout based on route (setup vs main)
+ * - Toast notifications via Sonner
+ *
+ * Server Component Features:
+ * - Reads theme settings from cookies for SSR
+ * - Checks VB365/VRO configuration status
+ * - Applies theme CSS classes to <html> element
+ *
+ * @module app/layout
+ */
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { AppHeader } from "@/components/app-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ActiveThemeProvider } from "@/components/active-theme";
+import { ConditionalLayout } from "@/components/conditional-layout";
 import { DEFAULT_THEME } from "@/lib/themes";
 import { cookies } from "next/headers";
 import { cn } from "@/lib/utils";
@@ -66,18 +82,14 @@ export default async function RootLayout({
         >
           <ActiveThemeProvider initialTheme={themeSettings}>
             <SectionNamesProvider>
-              <SidebarProvider>
-                <AppSidebar
-                  vbrConfigured={!!process.env.VEEAM_API_URL}
-                  vb365Configured={!!process.env.VBM_API_URL}
-                  vroConfigured={!!process.env.VRO_API_URL}
-                  veeamOneConfigured={!!process.env.VEEAM_ONE_API_URL}
-                />
-                <SidebarInset>
-                  <AppHeader />
-                  {children}
-                </SidebarInset>
-              </SidebarProvider>
+              <ConditionalLayout
+                vbrConfigured={!!process.env.VEEAM_API_URL}
+                vb365Configured={!!process.env.VBM_API_URL}
+                vroConfigured={!!process.env.VRO_API_URL}
+                veeamOneConfigured={!!process.env.VEEAM_ONE_API_URL}
+              >
+                {children}
+              </ConditionalLayout>
             </SectionNamesProvider>
             <Toaster />
           </ActiveThemeProvider>

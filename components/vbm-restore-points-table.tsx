@@ -1,3 +1,31 @@
+/**
+ * VBM Restore Points Table Component
+ *
+ * Tabular view of Veeam Backup for Microsoft 365 restore points:
+ * - List-based alternative to calendar view
+ * - M365-specific metadata display
+ * - Faceted filtering by item type
+ *
+ * Features:
+ * - Sortable columns: Name, Creation time, Type
+ * - Faceted filter by item type (Mailbox, OneDrive, SharePoint, Teams)
+ * - Type icons for quick identification
+ * - Organization context display
+ * - Skeleton loading state
+ *
+ * Columns:
+ * - Name: Backup object name (mailbox, site, etc.)
+ * - Type: M365 item type with icon
+ * - Organization: M365 organization name
+ * - Created: Restore point creation timestamp
+ *
+ * Props:
+ * - data: Array of VBMRestorePoint objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/vbm-restore-points-table
+ */
+
 "use client"
 
 import * as React from "react"

@@ -1,3 +1,27 @@
+/**
+ * Mobile Detection Hook
+ *
+ * React hook for detecting mobile device viewport.
+ * Uses CSS media query matching for accurate detection.
+ *
+ * Features:
+ * - Server-side safe (returns undefined during SSR)
+ * - Reactive updates on window resize
+ * - Configurable breakpoint (768px default)
+ * - Cleanup on unmount
+ *
+ * Usage:
+ * ```tsx
+ * const isMobile = useIsMobile();
+ * if (isMobile) {
+ *   return <MobileLayout />;
+ * }
+ * ```
+ *
+ * @returns boolean - true if viewport < 768px, false otherwise
+ * @module hooks/use-mobile
+ */
+
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768

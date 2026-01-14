@@ -1,0 +1,31 @@
+# Backend build artifacts
+bin/
+*.exe
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Test output
+coverage.out
+coverage.html
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Air (hot reload)
+tmp/

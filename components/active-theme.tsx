@@ -1,3 +1,33 @@
+/**
+ * Active Theme Provider and Context
+ *
+ * Manages the application's visual theme beyond just dark/light mode:
+ * - Color presets: Blue, Green, Orange, Red, Violet, Yellow
+ * - Border radius: Adjustable corner roundness
+ * - Scale: Font and element sizing
+ * - Content layout: Centered or full-width
+ *
+ * Features:
+ * - Cookie-based persistence for server-side rendering
+ * - CSS variable injection for theme customization
+ * - React context for accessing/updating theme state
+ * - Automatic body class updates
+ *
+ * Cookie Keys:
+ * - theme_preset: Color preset name
+ * - theme_radius: Border radius value
+ * - theme_scale: Scale percentage
+ * - theme_layout: Content layout mode
+ *
+ * Usage:
+ * ```tsx
+ * const { theme, setTheme } = useActiveTheme();
+ * setTheme({ ...theme, preset: 'green' });
+ * ```
+ *
+ * @module components/active-theme
+ */
+
 "use client";
 
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";

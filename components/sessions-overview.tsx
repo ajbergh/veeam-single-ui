@@ -1,3 +1,33 @@
+/**
+ * Sessions Overview Component
+ *
+ * Comprehensive session viewer for VBR backup job sessions with:
+ * - Bar chart visualization of daily session outcomes (success/warning/failed)
+ * - Interactive data table with sorting, filtering, and column visibility
+ * - Time range selection (7-day or 30-day views)
+ * - Export functionality (CSV and JSON formats)
+ * - Faceted filtering by session type and result status
+ *
+ * Features:
+ * - Responsive chart that adjusts to container width
+ * - Color-coded session status (green=success, yellow=warning, red=failed)
+ * - Clickable rows for session detail navigation
+ * - Pagination for large session lists
+ * - Column visibility toggle for customization
+ * - Loading skeleton states during data fetch
+ *
+ * Props:
+ * - sessions: Array of VeeamSession objects to display
+ * - loading: Boolean for loading state
+ * - onSessionSelect: Callback when a session row is clicked
+ * - selectedSessionId: Currently selected session for highlighting
+ * - timeRange: "7d" or "30d" filter
+ * - onTimeRangeChange: Callback for time range changes
+ * - defaultFilterType: Default session type filter (e.g., ["BackupJob"])
+ *
+ * @module components/sessions-overview
+ */
+
 "use client"
 
 import * as React from "react"

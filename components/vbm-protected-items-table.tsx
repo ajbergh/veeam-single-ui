@@ -1,3 +1,28 @@
+/**
+ * VBM Protected Items Table Component
+ *
+ * Displays Veeam Backup for Microsoft 365 protected items with:
+ * - Users: M365 mailboxes, OneDrive, personal sites
+ * - Groups: M365 groups and shared mailboxes
+ * - Sites: SharePoint sites and document libraries
+ * - Teams: Microsoft Teams with channels and files
+ *
+ * Features:
+ * - Sorting by name, type, and organization
+ * - Filtering by item type (User, Group, Site, Team)
+ * - Column visibility customization
+ * - Search across item names and emails
+ * - Pagination for large item counts
+ * - Row click navigation to item details/restore points
+ *
+ * Props:
+ * - items: Array of VBMProtectedItem objects
+ * - organizations: Array of VBMOrganization for lookup
+ * - loading: Boolean for loading state
+ *
+ * @module components/vbm-protected-items-table
+ */
+
 "use client"
 
 import * as React from "react"

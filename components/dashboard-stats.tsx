@@ -1,3 +1,29 @@
+/**
+ * Dashboard Statistics Component
+ *
+ * Displays key metrics for the VBR dashboard in a grid of statistic cards:
+ * - Server Information: VBR version and connected server status
+ * - License Usage: Instance/socket license consumption with progress bar
+ * - Security Score: Percentage of passed security best practice checks
+ * - Malware Events: Count of active (unresolved) malware detection events
+ *
+ * Features:
+ * - Responsive grid layout (1-4 columns based on screen size)
+ * - Visual progress indicators for license and security percentages
+ * - Color-coded badges for status (green=healthy, yellow=warning, red=critical)
+ * - Graceful handling of missing data (shows "N/A" or 0)
+ *
+ * Props:
+ * - serverInfo: VBR server version and name
+ * - license: License model with instance counts
+ * - malwareEvents: Array of malware detection events
+ * - totalJobs: Total number of backup jobs
+ * - activeJobs: Number of currently running jobs
+ * - securityItems: Array of security best practice results
+ *
+ * @module components/dashboard-stats
+ */
+
 "use client"
 
 import { Activity, ShieldAlert, Key, Server } from "lucide-react"

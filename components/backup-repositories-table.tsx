@@ -1,3 +1,28 @@
+/**
+ * Backup Repositories Table Component
+ *
+ * Displays VBR backup repositories in an interactive data table with:
+ * - Capacity visualization: Progress bars showing used vs free space
+ * - Repository types: Windows, Linux, NFS, SMB, Object Storage support
+ * - Health monitoring: Status indicators and immutability settings
+ * - Task management: Concurrent task limits and current load
+ *
+ * Features:
+ * - Sorting by name, capacity, type, and health status
+ * - Filtering by repository type and status
+ * - Column visibility toggle for customization
+ * - Pagination for large repository lists
+ * - Action menu: Rescan, sync, enable/disable
+ * - Responsive design with horizontal scroll
+ *
+ * Props:
+ * - repositories: Array of VeeamRepositoryEnriched objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh repository data
+ *
+ * @module components/backup-repositories-table
+ */
+
 "use client";
 
 import * as React from "react";

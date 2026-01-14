@@ -1,3 +1,32 @@
+/**
+ * Security Widget Component
+ *
+ * Displays VBR security best practices analysis results in a dashboard card:
+ * - Overall security score with pass/fail percentages
+ * - List of security checks with status indicators
+ * - Recommendations for improving security posture
+ *
+ * Features:
+ * - Visual score display with progress bars
+ * - Pass/Fail status for each best practice check
+ * - Scrollable list for many security items
+ * - Loading skeleton state during fetch
+ * - Color-coded indicators (green=pass, yellow/red=fail)
+ *
+ * Props:
+ * - items: Array of SecurityBestPracticeItem objects
+ * - loading: Boolean for loading state
+ *
+ * Security Categories:
+ * - Configuration hardening
+ * - Password policies
+ * - Encryption settings
+ * - Network security
+ * - Backup security
+ *
+ * @module components/security-widget
+ */
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"

@@ -1,3 +1,18 @@
+/**
+ * Preset Selector Component
+ *
+ * Dropdown selector for theme color presets:
+ * - Veeam green, Blue, Purple, Rose, and more
+ * - Visual color swatches per preset
+ *
+ * Features:
+ * - Select dropdown with color preview
+ * - Applies preset colors while preserving other settings
+ * - Resets to default theme values when changing preset
+ *
+ * @module components/theme-customizer/preset-selector
+ */
+
 "use client";
 
 import { DEFAULT_THEME, THEMES } from "@/lib/themes";

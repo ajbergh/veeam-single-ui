@@ -1,3 +1,13 @@
+/**
+ * Reset Theme Button Component
+ *
+ * Destructive button to reset all theme settings to defaults:
+ * - Restores DEFAULT_THEME preset
+ * - Clears all customizations
+ *
+ * @module components/theme-customizer/reset-theme-button
+ */
+
 "use client";
 
 import { useThemeConfig } from "@/components/active-theme";

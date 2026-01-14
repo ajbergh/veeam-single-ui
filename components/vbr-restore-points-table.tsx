@@ -1,3 +1,32 @@
+/**
+ * VBR Restore Points Table Component
+ *
+ * Tabular view of Veeam Backup & Replication restore points:
+ * - List-based alternative to calendar view
+ * - Detailed restore point metadata
+ * - Restore action integration
+ *
+ * Features:
+ * - Sortable columns: Name, Date, Type, Size
+ * - Filtering by workload name
+ * - Pagination for large restore point sets
+ * - Platform icons (VMware, Hyper-V, Cloud, Physical)
+ * - Type badges (Full, Incremental, Synthetic)
+ * - Skeleton loading state
+ *
+ * Columns:
+ * - Name: Backup object name (VM, server, etc.)
+ * - Created: Restore point creation timestamp
+ * - Type: Full/Incremental/Synthetic/Reverse
+ * - Platform: VMware/Hyper-V/Agent/Cloud
+ *
+ * Props:
+ * - data: Array of VeeamRestorePoint objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/vbr-restore-points-table
+ */
+
 "use client"
 
 import * as React from "react"

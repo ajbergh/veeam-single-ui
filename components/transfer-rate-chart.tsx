@@ -1,3 +1,31 @@
+/**
+ * Transfer Rate Chart Component
+ *
+ * Visualizes backup data transfer rates over time using an area chart.
+ * Displays hourly transfer rates with trend indicators.
+ *
+ * Features:
+ * - Stacked area chart showing transfer rate over time
+ * - Automatic byte formatting (KB, MB, GB, TB)
+ * - Trend indicator: Up/down arrow with percentage change
+ * - Responsive chart that adapts to container width
+ * - Loading skeleton state during data fetch
+ * - Custom tooltips with formatted values
+ *
+ * Chart Library: Recharts with shadcn/ui chart wrapper
+ *
+ * Props:
+ * - data: Array of TransferRateData objects with hour, rate, timestamp
+ * - loading: Boolean for loading state
+ *
+ * Data Format:
+ * - hour: String label for x-axis (e.g., "14:00")
+ * - rate: Number of bytes transferred in that hour
+ * - timestamp: Date object for tooltip formatting
+ *
+ * @module components/transfer-rate-chart
+ */
+
 "use client"
 
 import { TrendingUp, TrendingDown, Activity } from "lucide-react"

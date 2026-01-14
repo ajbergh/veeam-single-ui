@@ -4,7 +4,10 @@ import { veeamApi } from "@/lib/api/veeam-client"
 
 export interface StorageStats {
     totalBackupSize: number
-    fileCount: number
+    totalUsedSpace: number
+    backupCount: number
+    restorePointCount: number
+    byBackup: Array<{ backupName: string; totalSize: number; restorePoints: number }>
 }
 
 export function useProtectedData() {

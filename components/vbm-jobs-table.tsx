@@ -1,3 +1,28 @@
+/**
+ * VBM Jobs Table Component
+ *
+ * Displays Veeam Backup for Microsoft 365 backup jobs with:
+ * - Job status: Running, Success, Warning, Failed indicators
+ * - Schedule information: Last run, next run times
+ * - Organization association: Which M365 tenant the job protects
+ * - Job type: Full backup, copy job, etc.
+ *
+ * Features:
+ * - Sorting by name, status, last run, next run
+ * - Filtering by job status and type
+ * - Column visibility customization
+ * - Pagination for many jobs
+ * - Row click navigation to job details
+ * - Action menu: Start, stop, enable/disable
+ *
+ * Props:
+ * - jobs: Array of VBMJob objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh job data
+ *
+ * @module components/vbm-jobs-table
+ */
+
 "use client"
 
 import * as React from "react"

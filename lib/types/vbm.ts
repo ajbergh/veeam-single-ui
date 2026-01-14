@@ -1,3 +1,23 @@
+/**
+ * Veeam Backup for Microsoft 365 (VBM) API Types
+ *
+ * TypeScript type definitions for the VBM REST API v8.
+ * These types are used for M365 backup job management and monitoring.
+ *
+ * Categories:
+ * - Job Types: M365 backup job configurations
+ * - Session Types: Job execution history
+ * - Organization Types: M365 tenant configurations
+ * - Protected Items: Users, Groups, Sites, Teams
+ * - Infrastructure: Proxies, Repositories
+ * - License Types: Licensed users management
+ *
+ * API Reference:
+ * https://helpcenter.veeam.com/docs/vbo365/rest/reference/vbo-rest-v8.html
+ *
+ * @module lib/types/vbm
+ */
+
 export interface VBMSchedulePolicy {
   scheduleEnabled: boolean;
   backupWindowEnabled: boolean;

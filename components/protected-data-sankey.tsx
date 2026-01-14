@@ -1,3 +1,30 @@
+/**
+ * Protected Data Sankey Component
+ *
+ * Sankey diagram visualization showing data flow from workloads to repositories:
+ * - Visual representation of which workloads are stored in which repositories
+ * - Interactive node highlighting
+ * - Progressive loading for large datasets
+ *
+ * Features:
+ * - Sankey diagram with workloads on left, repositories on right
+ * - Color-coded flows by workload type
+ * - Hover highlighting of connected nodes and links
+ * - "Show more" button for incremental data loading
+ * - Custom tooltip with source/target and size information
+ * - Responsive container sizing
+ *
+ * Data Structure:
+ * - byRepository: Record of repository names to total sizes
+ * - byWorkload: Record of workload types to total sizes
+ * - workloadToRepos: Optional mapping of workloads to their repositories
+ *
+ * Props:
+ * - data: Object with byRepository, byWorkload, and workloadToRepos maps
+ *
+ * @module components/protected-data-sankey
+ */
+
 "use client"
 
 import { useMemo, useState } from "react"

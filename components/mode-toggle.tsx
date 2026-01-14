@@ -1,3 +1,18 @@
+/**
+ * Mode Toggle Component
+ *
+ * Dark/Light theme toggle button for the application.
+ * Uses next-themes for theme management with system preference detection.
+ *
+ * Features:
+ * - Click to toggle between light and dark modes
+ * - Sun icon for light mode, Moon icon for dark mode
+ * - Handles hydration mismatch by showing disabled state until mounted
+ * - Ghost button styling for minimal visual impact
+ *
+ * @module components/mode-toggle
+ */
+
 "use client"
 
 import * as React from "react"

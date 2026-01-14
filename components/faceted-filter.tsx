@@ -1,3 +1,26 @@
+/**
+ * Faceted Filter Component
+ *
+ * Multi-select filter popover for filtering data by categorical values.
+ * Standalone version not tied to TanStack Table (see DataTableFacetedFilter for table-specific version).
+ *
+ * Features:
+ * - Multi-select popover with checkboxes
+ * - Optional icons per filter option
+ * - Count badges showing matches per option
+ * - Clear filter functionality
+ * - Selected values shown as badges when collapsed
+ *
+ * Props:
+ * - title: Filter label
+ * - options: Array of {label, value, icon} objects
+ * - selectedValues: Set of currently selected values
+ * - onSelect: Callback with updated selection
+ * - counts: Optional record of value counts
+ *
+ * @module components/faceted-filter
+ */
+
 "use client"
 
 import * as React from "react"

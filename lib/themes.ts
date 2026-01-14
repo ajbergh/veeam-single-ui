@@ -1,3 +1,31 @@
+/**
+ * Theme Configuration
+ *
+ * Defines the available visual themes for the application.
+ * Uses oklch color space for perceptually uniform colors.
+ *
+ * Theme Properties:
+ * - preset: Color scheme name (default, underground, rose-garden, etc.)
+ * - radius: Border radius multiplier
+ * - scale: Font/element scale percentage
+ * - contentLayout: "full" or "centered" content width
+ *
+ * Available Presets:
+ * - Default: Neutral grayscale
+ * - Underground: Green-tinted
+ * - Rose Garden: Pink/rose
+ * - Lake View: Teal/cyan
+ * - Sunset Glow: Orange/amber
+ * - Forest Whisper: Forest green
+ * - Ocean Breeze: Blue/purple
+ * - Lavender Dream: Purple/violet
+ *
+ * Color Format:
+ * Uses oklch() for consistent perceived brightness across hues.
+ *
+ * @module lib/themes
+ */
+
 export const DEFAULT_THEME = {
     preset: "default",
     radius: "default",

@@ -1,3 +1,15 @@
+/**
+ * Content Layout Selector Component
+ *
+ * Toggle for page content layout mode:
+ * - Full: Content spans full width
+ * - Centered: Content constrained to center
+ *
+ * Only visible on large screens (lg:flex).
+ *
+ * @module components/theme-customizer/content-layout-selector
+ */
+
 "use client";
 
 

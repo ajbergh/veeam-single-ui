@@ -1,3 +1,16 @@
+/**
+ * Sidebar Mode Selector Component
+ *
+ * Toggle for sidebar display mode:
+ * - Default: Full sidebar with labels
+ * - Icon: Collapsed icon-only sidebar
+ *
+ * Only visible on large screens (lg:flex).
+ * Uses useSidebar hook to toggle state.
+ *
+ * @module components/theme-customizer/sidebar-mode-selector
+ */
+
 "use client";
 
 

@@ -1,3 +1,28 @@
+/**
+ * Virtual Infrastructure Table Component
+ *
+ * Displays VBR virtual infrastructure inventory with protection status:
+ * - VMware vSphere, Microsoft Hyper-V, and Nutanix AHV VMs
+ * - Protection status indicators (protected/unprotected)
+ * - Rich metadata: vCenter, Datacenter, Cluster, Guest OS, DNS
+ *
+ * Features:
+ * - Advanced faceted filtering by platform, protection status, power state
+ * - Sorting by name, type, cluster, and protection status
+ * - Search across VM names and DNS names
+ * - Column visibility customization
+ * - Pagination for large inventories
+ * - Visual status badges: Running/Stopped, Protected/Unprotected
+ * - Action menu for VM operations
+ *
+ * Props:
+ * - inventory: Array of VeeamInventoryItem objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh inventory data
+ *
+ * @module components/virtual-infrastructure-table
+ */
+
 "use client"
 
 import * as React from "react"

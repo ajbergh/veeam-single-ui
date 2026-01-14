@@ -1,3 +1,28 @@
+/**
+ * Global Search Component
+ *
+ * Unified search interface for finding resources across all Veeam products:
+ * - VBR backup jobs and protected workloads
+ * - VBM Microsoft 365 jobs and protected items
+ * - VRO recovery plans
+ *
+ * Features:
+ * - Command palette UI (⌘K / Ctrl+K shortcut)
+ * - Real-time search with debouncing
+ * - Categorized results by product and type
+ * - Loading indicator during search
+ * - Keyboard navigation support
+ * - Click or Enter to navigate to result
+ * - Empty state handling
+ *
+ * Result Types:
+ * - VBR Job: Backup job configuration
+ * - VBR Workload: Protected VM or workload
+ * - VB365 Job: Microsoft 365 backup job
+ * - VB365 Item: Protected M365 user/group/site/team
+ *
+ * @module components/global-search
+ */
 
 "use client"
 

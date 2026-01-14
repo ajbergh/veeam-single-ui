@@ -1,8 +1,30 @@
 /**
- * Rate Limiter Utility
- * 
+ * Rate Limiter and Auth Debouncer Utilities
+ *
  * Implements request queuing and rate limiting to prevent API quota exceeded errors.
- * Particularly useful for VBM API which has strict rate limits (1 request per second).
+ * Essential for VBM API which has strict rate limits (1 request per second).
+ *
+ * Classes:
+ * - RateLimiter: Queues and throttles API requests
+ * - AuthDebouncer: Prevents concurrent authentication requests for same server
+ *
+ * Rate Limiting Behavior:
+ * - Queues incoming requests
+ * - Processes one request at a time
+ * - Enforces minimum interval between requests
+ * - Handles errors without blocking queue
+ *
+ * Usage:
+ * ```typescript
+ * const limiter = new RateLimiter(1); // 1 request per second
+ * const result = await limiter.execute(() => fetch('/api/endpoint'));
+ * ```
+ *
+ * VBM-Specific:
+ * The VBM API enforces a 1 request/second limit. Exceeding this returns 429 errors.
+ * This rate limiter ensures compliance by queuing requests client-side.
+ *
+ * @module lib/utils/rate-limiter
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

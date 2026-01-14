@@ -1,5 +1,35 @@
-// Veeam Backup & Replication API Client
-// This client now uses Next.js API routes to avoid CORS issues
+/**
+ * Veeam Backup & Replication API Client
+ *
+ * This is the central API client for the Veeam Single-UI frontend. It provides:
+ * - Unified interface for all Veeam product APIs (VBR, VRO, VBM)
+ * - Intelligent routing: Uses Go backend when available, falls back to Next.js API routes
+ * - Token management: Handles authentication, refresh, and token injection
+ * - Rate limiting: Respects API limits (especially VBM's 1 req/sec)
+ * - Error handling: Graceful degradation for permission errors and missing endpoints
+ *
+ * Architecture:
+ *   Component → veeam-client.ts → go-backend-client.ts → Go Backend → Veeam APIs
+ *                     ↓ (fallback)
+ *               Next.js API Routes → Veeam APIs
+ *
+ * Key Functions:
+ * - getBackupJobs(): Fetches all backup jobs with state enrichment
+ * - getSessions(): Fetches job sessions with filtering
+ * - getRepositories(): Fetches backup repositories with capacity info
+ * - getProtectedData(): Fetches protected workloads (VMs, files, etc.)
+ * - getMalwareEvents(): Fetches malware detection events
+ * - getSecurityBestPractices(): Fetches security analyzer results
+ * - getVBMJobs(), getVBMSessions(): VBM-specific endpoints
+ * - getVROPlans(): VRO recovery plan endpoints
+ *
+ * Error Handling:
+ * - 403 errors: Logged as warnings, returns empty data (graceful degradation)
+ * - 404 errors: Handles endpoint differences between VBR versions
+ * - Network errors: Retries with exponential backoff via rate limiter
+ *
+ * @module lib/api/veeam-client
+ */
 
 import {
   VeeamBackupJob,
@@ -33,9 +63,9 @@ import {
   UnstructuredServersResult,
   VeeamCredential,
   VeeamRepositoryDetailed,
-  VeeamRepository, // New
-  VeeamRepositoryState, // New
-  VeeamRepositoryEnriched, // New
+  VeeamRepository,
+  VeeamRepositoryState,
+  VeeamRepositoryEnriched,
   VeeamProxy,
   VeeamProxyState,
   ProxiesResult,
@@ -49,10 +79,15 @@ import {
   UsersResult,
   RolesResult,
   RolePermissionsResult,
-  SecuritySettings
+  SecuritySettings,
+  VeeamServerInfo
 } from '@/lib/types/veeam';
 import { VBMJob, VBMJobsResponse, VBMJobSession, VBMJobSessionsResponse, VBMLicense, VBMHealth, VBMServiceInstance, VBMOrganization, VBMOrganizationsResponse, VBMUsedRepositoriesResponse, VBMUsedRepository, VBMProtectedUser, VBMProtectedUsersResponse, VBMProtectedGroup, VBMProtectedGroupsResponse, VBMProtectedSite, VBMProtectedSitesResponse, VBMProtectedTeam, VBMProtectedTeamsResponse, VBMRestorePoint, VBMRestorePointsResponse, VBMBackupRepository, VBMBackupRepositoriesResponse, VB365LicensedUser, VB365LicensedUsersResponse, VB365Proxy, VB365ProxiesResponse, VB365Repository, VB365RepositoriesResponse } from '@/lib/types/vbm';
-import { AuthDebouncer, RateLimiter } from '@/lib/utils/rate-limiter';
+import { RateLimiter } from '@/lib/utils/rate-limiter';
+import { goBackendClient, GoBackendServer } from '@/lib/api/go-backend-client';
+
+// Product type mapping for API prefixes
+type ProductType = 'vbr' | 'vro' | 'vbm' | 'vb365' | 'k10';
 
 interface TokenResponse {
   access_token: string;
@@ -65,182 +100,185 @@ interface TokenResponse {
 }
 
 class VeeamApiClient {
+  // Legacy token fields - kept for interface compatibility but not used
+  // All authentication is now handled by the Go backend
   private token: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: Date | null = null;
-
-  // VRO tokens (separate from VBR)
   private vroToken: string | null = null;
   private vroRefreshToken: string | null = null;
   private vroTokenExpiry: Date | null = null;
-
-  // VBM tokens (separate from VBR and VRO)
   private vbmToken: string | null = null;
   private vbmRefreshToken: string | null = null;
   private vbmTokenExpiry: Date | null = null;
 
-  // Rate limiting and debouncing for VBM (1 request per second limit)
+  // Rate limiter kept for future use if needed
   private vbmRateLimiter = new RateLimiter(1);
-  private vbmAuthDebouncer = new AuthDebouncer<string>(3000); // Cache auth for 3 seconds
 
-  private async authenticate(): Promise<string> {
-    // Check if token exists and is still valid (with 5 minute buffer)
-    if (this.token && this.tokenExpiry) {
-      const now = new Date();
-      const bufferMs = 5 * 60 * 1000; // 5 minutes
-      if (now.getTime() < this.tokenExpiry.getTime() - bufferMs) {
-        return this.token;
-      }
+  // Go backend integration - cache server lookups
+  private serverCache: Map<ProductType, GoBackendServer | null> = new Map();
+  private serverCacheExpiry: Date | null = null;
+  private useGoBackend: boolean | null = null;
 
-      // Token expired, try to refresh if we have a refresh token
-      if (this.refreshToken) {
-        try {
-          return await this.refreshAccessToken();
-        } catch (error) {
-          console.warn('Token refresh failed, re-authenticating:', error);
-          // Fall through to full authentication
-        }
+  /**
+   * Ensure Go backend is available - this is required for standalone mode
+   * Throws an error if backend is not reachable
+   */
+  private async ensureGoBackendAvailable(): Promise<void> {
+    // Only check once per session (or until explicitly cleared)
+    if (this.useGoBackend === true) {
+      return;
+    }
+
+    // Verify backend is actually reachable
+    try {
+      await goBackendClient.checkHealth();
+      this.useGoBackend = true;
+      console.log('[VeeamClient] Go backend is available');
+    } catch (error) {
+      this.useGoBackend = false;
+      throw new Error('Go backend is not reachable. Please ensure the backend service is running.');
+    }
+  }
+
+  /**
+   * Get the primary server for a product type from Go backend
+   * Throws an error if no server is configured
+   */
+  private async getServerForProduct(productType: ProductType): Promise<GoBackendServer> {
+    // Ensure backend is available first
+    await this.ensureGoBackendAvailable();
+
+    // Check cache (5 minute expiry)
+    const now = new Date();
+    if (this.serverCacheExpiry && now < this.serverCacheExpiry && this.serverCache.has(productType)) {
+      const cachedServer = this.serverCache.get(productType);
+      if (cachedServer) {
+        return cachedServer;
       }
     }
 
     try {
-      let authUrl = '/api/veeam/auth';
-      if (typeof window === 'undefined') {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        authUrl = `${baseUrl}${authUrl}`;
+      const server = await goBackendClient.getPrimaryServer(productType);
+      if (server) {
+        this.serverCache.set(productType, server);
+        this.serverCacheExpiry = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
+        return server;
       }
-
-      const response = await fetch(authUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ grant_type: 'password' }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Authentication failed: ${response.status}`);
-      }
-
-      const data: TokenResponse = await response.json();
-      this.token = data.access_token;
-      this.refreshToken = data.refresh_token;
-
-      // Calculate token expiry (expires_in is in seconds)
-      this.tokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-      return this.token;
     } catch (error) {
-      console.error('Authentication error:', error);
-      throw error;
+      console.warn(`[VeeamClient] Failed to get ${productType} server:`, error);
     }
+
+    // No server configured - throw a helpful error
+    throw new Error(
+      `No ${productType.toUpperCase()} server configured. ` +
+      `Please add a ${productType.toUpperCase()} server in Administration > Servers > Connections.`
+    );
   }
 
-  private async refreshAccessToken(): Promise<string> {
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    try {
-      let authUrl = '/api/veeam/auth';
-      if (typeof window === 'undefined') {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        authUrl = `${baseUrl}${authUrl}`;
-      }
-
-      const response = await fetch(authUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: this.refreshToken,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Token refresh failed: ${response.status}`);
-      }
-
-      const data: TokenResponse = await response.json();
-      this.token = data.access_token;
-      this.refreshToken = data.refresh_token;
-      this.tokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-      return this.token;
-    } catch (error) {
-      // Clear tokens on refresh failure
-      this.token = null;
-      this.refreshToken = null;
-      this.tokenExpiry = null;
-      throw error;
-    }
+  /**
+   * Clear server cache (call when servers are added/removed)
+   */
+  public clearServerCache(): void {
+    this.serverCache.clear();
+    this.serverCacheExpiry = null;
+    this.useGoBackend = null;
   }
 
+  /**
+   * Determine product type from API prefix
+   */
+  private getProductTypeFromPrefix(prefix: string): ProductType {
+    if (prefix.includes('/vro')) return 'vro';
+    if (prefix.includes('/vbm')) return 'vbm';
+    return 'vbr'; // Default to VBR
+  }
+
+  /**
+   * Make a request through the Go backend proxy
+   * No fallback to legacy mode - Go backend is required
+   */
   private async request<T>(endpoint: string, options?: RequestInit & { apiPrefix?: string }): Promise<T> {
-    const token = await this.authenticate();
-
     const prefix = options?.apiPrefix ?? '/api/veeam';
-    let url = `${prefix}${endpoint}`;
+    const productType = this.getProductTypeFromPrefix(prefix);
 
-    if (typeof window === 'undefined') {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      if (url.startsWith('/')) {
-        url = `${baseUrl}${url}`;
-      }
+    // Get the server for this product type (throws if not available)
+    const server = await this.getServerForProduct(productType);
+
+    // Ensure server is authenticated
+    const tokenStatus = await goBackendClient.getTokenStatus(server.id);
+    if (!tokenStatus.hasToken || tokenStatus.isExpired) {
+      console.log(`[VeeamClient] Authenticating ${productType} server via Go backend`);
+      await goBackendClient.authenticateServer(server.id);
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    // Map the endpoint to the correct Veeam API path
+    const apiPath = this.mapEndpointToApiPath(endpoint, productType);
 
-    // Handle empty responses (204 No Content)
-    if (response.status === 204) {
-      return {} as T;
+    const method = options?.method?.toUpperCase() || 'GET';
+    
+    if (method === 'GET') {
+      return await goBackendClient.proxyGet<T>(server.id, apiPath);
+    } else if (method === 'POST') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPost<T>(server.id, apiPath, body);
+    } else if (method === 'PUT') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPut<T>(server.id, apiPath, body);
+    } else if (method === 'DELETE') {
+      return await goBackendClient.proxyDelete<T>(server.id, apiPath);
     }
+    
+    throw new Error(`Unsupported HTTP method: ${method}`);
+  }
 
-    const contentType = response.headers.get('content-type');
-
-    // Handle JSON responses
-    if (contentType && contentType.includes('application/json')) {
-      const text = await response.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = { error: text };
-      }
-
-      if (!response.ok) {
-        const errorMessage = data.error || data.message || `API request failed: ${response.status} ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-      return data as T;
+  /**
+   * Map frontend endpoint to actual Veeam API path
+   */
+  private mapEndpointToApiPath(endpoint: string, productType: ProductType): string {
+    // VBR endpoints are already correct (e.g., /jobs, /sessions)
+    // They map to VBR's /api/v1/* 
+    if (productType === 'vbr') {
+      return `/api/v1${endpoint}`;
     }
-
-    // Handle Text/HTML responses
-    const text = await response.text();
-    if (!response.ok) {
-      throw new Error(text || `API request failed: ${response.status} ${response.statusText}`);
+    
+    // VBM/VB365 endpoints need /v7 prefix
+    if (productType === 'vbm' || productType === 'vb365') {
+      return `/v7${endpoint}`;
     }
-    return text as unknown as T;
+    
+    // VRO endpoints need /api/v1 prefix
+    if (productType === 'vro') {
+      return `/api/v1${endpoint}`;
+    }
+    
+    return endpoint;
   }
 
   async logout(): Promise<void> {
-    // Clear local tokens (server-side logout is handled by token expiration)
+    // Clear cached data
+    this.clearServerCache();
     this.token = null;
     this.refreshToken = null;
     this.tokenExpiry = null;
   }
 
+  /**
+   * Fetches all backup jobs from VBR with optional filtering and pagination.
+   *
+   * Attempts to use the enhanced /jobs/states endpoint for richer data,
+   * with automatic fallback to /jobs for older VBR versions.
+   *
+   * @param options - Optional filtering and pagination parameters
+   * @param options.skip - Number of records to skip (pagination)
+   * @param options.limit - Maximum number of records to return
+   * @param options.orderColumn - Column to sort by
+   * @param options.orderAsc - Sort ascending if true
+   * @param options.nameFilter - Filter by job name
+   * @param options.typeFilter - Filter by job type
+   * @returns Array of backup jobs
+   * @throws Error if neither endpoint is available
+   */
   async getBackupJobs(options?: {
     skip?: number;
     limit?: number;
@@ -249,44 +287,62 @@ class VeeamApiClient {
     nameFilter?: string;
     typeFilter?: string;
   }): Promise<VeeamBackupJob[]> {
+    const params = new URLSearchParams();
+    if (options?.skip !== undefined) params.append('skip', options.skip.toString());
+    if (options?.limit !== undefined) params.append('limit', options.limit.toString());
+    if (options?.orderAsc !== undefined) params.append('orderAsc', options.orderAsc.toString());
+    if (options?.nameFilter) params.append('nameFilter', options.nameFilter);
+    if (options?.typeFilter) params.append('typeFilter', options.typeFilter);
+
+    const queryString = params.toString();
+    
     try {
-      const params = new URLSearchParams();
-      if (options?.skip !== undefined) params.append('skip', options.skip.toString());
-      if (options?.limit !== undefined) params.append('limit', options.limit.toString());
-      if (options?.orderAsc !== undefined) params.append('orderAsc', options.orderAsc.toString());
-      if (options?.nameFilter) params.append('nameFilter', options.nameFilter);
-      if (options?.typeFilter) params.append('typeFilter', options.typeFilter);
-
-      const queryString = params.toString();
-      // Use the new /jobs/states endpoint for better performance and more data
+      // Try the new /jobs/states endpoint for better performance and more data
       const endpoint = queryString ? `/jobs/states?${queryString}` : '/jobs/states';
-
       const response = await this.request<JobsResult>(endpoint);
       return response.data || [];
-    } catch (error) {
-      console.error('Error fetching backup jobs:', error);
-      throw error;
+    } catch (statesError) {
+      // Fallback to basic /jobs endpoint if /jobs/states fails (VBR version compatibility)
+      console.warn('Failed to fetch from /jobs/states, falling back to /jobs:', statesError);
+      try {
+        const endpoint = queryString ? `/jobs?${queryString}` : '/jobs';
+        const response = await this.request<JobsResult>(endpoint);
+        return response.data || [];
+      } catch (error) {
+        console.error('Error fetching backup jobs:', error);
+        throw error;
+      }
     }
   }
 
+  /**
+   * Fetches a single backup job by ID, enriched with state data if available.
+   *
+   * @param id - UUID of the backup job
+   * @returns Backup job with state information
+   * @throws Error if job not found
+   */
   async getBackupJobById(id: string): Promise<VeeamBackupJob> {
     try {
-      // Fetch both basic job info and enriched state data
-      const [basicJob, statesResponse] = await Promise.all([
-        this.request<VeeamBackupJob>(`/jobs/${id}`),
-        this.request<JobsResult>(`/jobs/states?idFilter=${id}`)
-      ]);
-
-      // Merge state data if available
-      const stateJob = statesResponse.data?.find(j => j.id === id);
-      if (stateJob) {
-        return {
-          ...basicJob,
-          ...stateJob,
-          // Ensure basic fields aren't overwritten with undefined
-          name: basicJob.name || stateJob.name,
-          type: basicJob.type || stateJob.type,
-        };
+      // Fetch basic job info
+      const basicJob = await this.request<VeeamBackupJob>(`/jobs/${id}`);
+      
+      // Try to enrich with state data, but don't fail if it's not available
+      try {
+        const statesResponse = await this.request<JobsResult>(`/jobs/states?idFilter=${id}`);
+        const stateJob = statesResponse.data?.find(j => j.id === id);
+        if (stateJob) {
+          return {
+            ...basicJob,
+            ...stateJob,
+            // Ensure basic fields aren't overwritten with undefined
+            name: basicJob.name || stateJob.name,
+            type: basicJob.type || stateJob.type,
+          };
+        }
+      } catch (statesError) {
+        // /jobs/states may not be available on older VBR versions
+        console.warn(`Could not fetch job state for ${id}:`, statesError);
       }
 
       return basicJob;
@@ -296,6 +352,10 @@ class VeeamApiClient {
     }
   }
 
+  /**
+   * Starts a backup job immediately.
+   * @param id - UUID of the backup job to start
+   */
   async startJob(id: string): Promise<void> {
     try {
       await this.request(`/jobs/${id}`, {
@@ -645,8 +705,9 @@ class VeeamApiClient {
 
       const response = await this.request<MalwareEventsResult>(endpoint);
       return response.data || [];
-    } catch (error) {
-      console.error('Error fetching malware events:', error);
+    } catch {
+      // Malware detection may not be available on all VBR versions
+      console.warn('Malware detection endpoint not available');
       return [];
     }
   }
@@ -657,11 +718,13 @@ class VeeamApiClient {
       return response.items || [];
     } catch (error: unknown) {
       const err = error as { status?: number; message?: string };
-      // Check if it's a permission error
-      if (err?.status === 403 || err?.message?.includes('403') || err?.message?.includes('Permission denied')) {
-        console.warn('⚠️ Security best practices unavailable: User lacks GetBestPracticesComplianceResult permission (Veeam Backup/Security Administrator role required)');
+      // Check if it's a permission or availability error
+      if (err?.message?.includes('404')) {
+        console.warn('Security best practices endpoint not available on this VBR version');
+      } else if (err?.status === 403 || err?.message?.includes('403') || err?.message?.includes('Permission denied')) {
+        console.warn('Security best practices unavailable: User lacks required permissions');
       } else {
-        console.error('Error fetching security best practices:', error);
+        console.warn('Security best practices unavailable:', err?.message || 'Unknown error');
       }
       return [];
     }
@@ -680,9 +743,8 @@ class VeeamApiClient {
 
   async getProtectedData(): Promise<VeeamProtectedWorkload[]> {
     try {
-      const response = await this.request<{ data: VeeamProtectedWorkload[] }>('/protected-data', {
-        apiPrefix: '/api/vbr'
-      });
+      // Use the VBR /backupObjects endpoint to get protected workloads
+      const response = await this.request<{ data: VeeamProtectedWorkload[] }>('/backupObjects?limit=1000');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching protected data:', error);
@@ -692,9 +754,8 @@ class VeeamApiClient {
 
   async getBackupFiles(backupId: string): Promise<VeeamBackupFile[]> {
     try {
-      const response = await this.request<{ data: VeeamBackupFile[] }>(`/backups/${backupId}/files`, {
-        apiPrefix: '/api/vbr'
-      });
+      // Use the VBR /backups/{id}/backupFiles endpoint
+      const response = await this.request<{ data: VeeamBackupFile[] }>(`/backups/${backupId}/backupFiles`);
       return response.data || [];
     } catch (error) {
       console.error(`Error fetching backup files for ${backupId}:`, error);
@@ -710,26 +771,14 @@ class VeeamApiClient {
       if (params.objectId) query.append('objectId', params.objectId);
       if (params.backupId) query.append('backupId', params.backupId);
 
-      const endpoint = query.toString() ? `/restore-points?${query.toString()}` : '/restore-points';
+      // Use the VBR /backupObjects endpoint with filters
+      const endpoint = query.toString() ? `/backupObjects?${query.toString()}` : '/backupObjects';
 
-      const response = await this.request<{ data: VeeamRestorePoint[] }>(endpoint, {
-        apiPrefix: '/api/vbr'
-      });
+      const response = await this.request<{ data: VeeamRestorePoint[] }>(endpoint);
       return response.data || [];
     } catch (error) {
       console.error('Error fetching VBR restore points:', error);
       throw error;
-    }
-  }
-
-  async getStorageCapacity(): Promise<{ totalBackupSize: number, fileCount: number } | null> {
-    try {
-      return await this.request<{ totalBackupSize: number, fileCount: number }>('/StorageCapacity', {
-        apiPrefix: '/api/vbr'
-      });
-    } catch (error) {
-      console.error('Error fetching storage capacity:', error);
-      return null;
     }
   }
 
@@ -1141,119 +1190,121 @@ class VeeamApiClient {
   }
 
   // ============================================
+  // VBR Server Info and Storage Methods
+  // ============================================
+
+  /**
+   * Get VBR server information
+   */
+  async getServerInfo(): Promise<VeeamServerInfo> {
+    try {
+      return await this.request<VeeamServerInfo>('/serverInfo');
+    } catch (error) {
+      console.error('Error fetching server info:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get storage capacity information by aggregating backup data
+   */
+  async getStorageCapacity(): Promise<{
+    totalBackupSize: number;
+    totalUsedSpace: number;
+    backupCount: number;
+    restorePointCount: number;
+    byBackup: Array<{ backupName: string; totalSize: number; restorePoints: number }>;
+  }> {
+    try {
+      // Fetch backups
+      const backupsResponse = await this.request<BackupsResult>('/backups?limit=500');
+      const backups = backupsResponse.data || [];
+
+      // Aggregate data
+      let totalBackupSize = 0;
+      let restorePointCount = 0;
+      const byBackup: Array<{ backupName: string; totalSize: number; restorePoints: number }> = [];
+
+      // Fetch backup files for each backup to get accurate sizes
+      await Promise.all(
+        backups.map(async (backup) => {
+          try {
+            const filesResponse = await this.request<{ data?: VeeamBackupFile[] }>(
+              `/backups/${backup.id}/backupFiles?limit=1000`
+            );
+            const files = filesResponse.data || [];
+
+            let backupTotalSize = 0;
+            for (const file of files) {
+              backupTotalSize += file.backupSize || 0;
+            }
+
+            byBackup.push({
+              backupName: backup.name,
+              totalSize: backupTotalSize,
+              restorePoints: files.length
+            });
+
+            totalBackupSize += backupTotalSize;
+            restorePointCount += files.length;
+          } catch {
+            // Backup files endpoint may not be available
+            console.warn(`Backup files not available for ${backup.name}`);
+          }
+        })
+      );
+
+      return {
+        totalBackupSize,
+        totalUsedSpace: totalBackupSize, // Same as totalBackupSize for now
+        backupCount: backups.length,
+        restorePointCount,
+        byBackup
+      };
+    } catch (error) {
+      console.error('Error fetching storage capacity:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
   // Veeam Recovery Orchestrator (VRO) Methods
   // ============================================
 
-  private async authenticateVRO(): Promise<string> {
-    // Check if token exists and is still valid (with 5 minute buffer)
-    if (this.vroToken && this.vroTokenExpiry) {
-      const now = new Date();
-      const bufferMs = 5 * 60 * 1000; // 5 minutes
-      if (now.getTime() < this.vroTokenExpiry.getTime() - bufferMs) {
-        return this.vroToken;
-      }
-
-      // Token expired, try to refresh if we have a refresh token
-      if (this.vroRefreshToken) {
-        try {
-          return await this.refreshVROAccessToken();
-        } catch (error) {
-          console.warn('VRO token refresh failed, re-authenticating:', error);
-          // Fall through to full authentication
-        }
-      }
-    }
-
-    try {
-      const response = await fetch('/api/vro/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ grant_type: 'password' }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `VRO authentication failed: ${response.status}`);
-      }
-
-      const data: TokenResponse = await response.json();
-      this.vroToken = data.access_token;
-      this.vroRefreshToken = data.refresh_token;
-
-      // Calculate token expiry (expires_in is in seconds)
-      this.vroTokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-      return this.vroToken;
-    } catch (error) {
-      console.error('VRO authentication error:', error);
-      throw error;
-    }
-  }
-
-  private async refreshVROAccessToken(): Promise<string> {
-    if (!this.vroRefreshToken) {
-      throw new Error('No VRO refresh token available');
-    }
-
-    try {
-      const response = await fetch('/api/vro/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: this.vroRefreshToken,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `VRO token refresh failed: ${response.status}`);
-      }
-
-      const data: TokenResponse = await response.json();
-      this.vroToken = data.access_token;
-      this.vroRefreshToken = data.refresh_token;
-      this.vroTokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-      return this.vroToken;
-    } catch (error) {
-      // Clear tokens on refresh failure
-      this.vroToken = null;
-      this.vroRefreshToken = null;
-      this.vroTokenExpiry = null;
-      throw error;
-    }
-  }
-
+  /**
+   * Request method for VRO - routes through Go backend
+   */
   private async requestVRO<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const token = await this.authenticateVRO();
+    // Get the VRO server from Go backend
+    const server = await this.getServerForProduct('vro');
 
-    const url = `/api/vro${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      const error: VeeamApiError = {
-        message: errorData.error || `VRO API request failed: ${response.status} ${response.statusText}`,
-        code: response.status.toString(),
-      };
-      throw error;
+    // Ensure server is authenticated
+    const tokenStatus = await goBackendClient.getTokenStatus(server.id);
+    if (!tokenStatus.hasToken || tokenStatus.isExpired) {
+      console.log(`[VeeamClient] Authenticating VRO server via Go backend`);
+      await goBackendClient.authenticateServer(server.id);
     }
 
-    return response.json();
+    // Map the endpoint to the correct VRO API path
+    const apiPath = this.mapEndpointToApiPath(endpoint, 'vro');
+
+    const method = options?.method?.toUpperCase() || 'GET';
+    
+    if (method === 'GET') {
+      return await goBackendClient.proxyGet<T>(server.id, apiPath);
+    } else if (method === 'POST') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPost<T>(server.id, apiPath, body);
+    } else if (method === 'PUT') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPut<T>(server.id, apiPath, body);
+    } else if (method === 'DELETE') {
+      return await goBackendClient.proxyDelete<T>(server.id, apiPath);
+    }
+    
+    throw new Error(`Unsupported HTTP method: ${method}`);
   }
+
 
   async getRecoveryPlans(options?: {
     start?: number;
@@ -1297,132 +1348,40 @@ class VeeamApiClient {
   // Veeam Backup for Microsoft 365 (VBM) Methods
   // ============================================
 
-  private async authenticateVBM(): Promise<string> {
-    // Use debouncer to prevent multiple simultaneous auth calls
-    return this.vbmAuthDebouncer.execute(async () => {
-      // Check if token exists and is still valid (with 5 minute buffer)
-      if (this.vbmToken && this.vbmTokenExpiry) {
-        const now = new Date();
-        const bufferMs = 5 * 60 * 1000; // 5 minutes
-        if (now.getTime() < this.vbmTokenExpiry.getTime() - bufferMs) {
-          return this.vbmToken;
-        }
-
-        // Token expired, try to refresh if we have a refresh token
-        if (this.vbmRefreshToken) {
-          try {
-            return await this.refreshVBMAccessToken();
-          } catch (error) {
-            console.warn('VBM token refresh failed, re-authenticating:', error);
-            // Fall through to full authentication
-          }
-        }
-      }
-
-      try {
-        const response = await fetch('/api/vbm/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ grant_type: 'password' }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `VBM authentication failed: ${response.status}`);
-        }
-
-        const data: TokenResponse = await response.json();
-        this.vbmToken = data.access_token;
-        this.vbmRefreshToken = data.refresh_token;
-
-        // Calculate token expiry (expires_in is in seconds)
-        this.vbmTokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-        return this.vbmToken;
-      } catch (error) {
-        console.error('VBM authentication error:', error);
-        throw error;
-      }
-    });
-  }
-
-  private async refreshVBMAccessToken(): Promise<string> {
-    if (!this.vbmRefreshToken) {
-      throw new Error('No VBM refresh token available');
-    }
-
-    try {
-      const response = await fetch('/api/vbm/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: this.vbmRefreshToken,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `VBM token refresh failed: ${response.status}`);
-      }
-
-      const data: TokenResponse = await response.json();
-      this.vbmToken = data.access_token;
-      this.vbmRefreshToken = data.refresh_token;
-      this.vbmTokenExpiry = new Date(Date.now() + data.expires_in * 1000);
-
-      return this.vbmToken;
-    } catch (error) {
-      // Clear tokens on refresh failure
-      this.vbmToken = null;
-      this.vbmRefreshToken = null;
-      this.vbmTokenExpiry = null;
-      throw error;
-    }
-  }
-
+  /**
+   * Request method for VBM - routes through Go backend
+   */
   private async requestVBM<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    // Use rate limiter to ensure we don't exceed API quota (1 req/sec)
-    return this.vbmRateLimiter.execute(async () => {
-      const token = await this.authenticateVBM();
+    // Get the VBM server from Go backend
+    const server = await this.getServerForProduct('vbm');
 
-      const url = `/api/vbm${endpoint}`;
+    // Ensure server is authenticated
+    const tokenStatus = await goBackendClient.getTokenStatus(server.id);
+    if (!tokenStatus.hasToken || tokenStatus.isExpired) {
+      console.log(`[VeeamClient] Authenticating VBM server via Go backend`);
+      await goBackendClient.authenticateServer(server.id);
+    }
 
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
-      });
+    // Map the endpoint to the correct VBM API path
+    const apiPath = this.mapEndpointToApiPath(endpoint, 'vbm');
 
-      // Handle empty responses (204 No Content)
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = { error: text };
-      }
-
-      if (!response.ok) {
-        const errorMessage = data.error || data.message || `VBM API request failed: ${response.status} ${response.statusText}`;
-        // Throw a proper Error object so that calling code (like catch blocks) can access .message
-        throw new Error(errorMessage);
-      }
-
-      return data as T;
-    });
+    const method = options?.method?.toUpperCase() || 'GET';
+    
+    if (method === 'GET') {
+      return await goBackendClient.proxyGet<T>(server.id, apiPath);
+    } else if (method === 'POST') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPost<T>(server.id, apiPath, body);
+    } else if (method === 'PUT') {
+      const body = options?.body ? JSON.parse(options.body as string) : undefined;
+      return await goBackendClient.proxyPut<T>(server.id, apiPath, body);
+    } else if (method === 'DELETE') {
+      return await goBackendClient.proxyDelete<T>(server.id, apiPath);
+    }
+    
+    throw new Error(`Unsupported HTTP method: ${method}`);
   }
+
 
   async getVBMJobs(options?: {
     offset?: number;
@@ -1535,19 +1494,9 @@ class VeeamApiClient {
 
   async revokeVB365License(userId: string): Promise<void> {
     try {
-      const token = this.vbmToken;
-      const response = await fetch(`/api/vbm/LicensedUsers/${encodeURIComponent(userId)}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      await this.requestVBM<void>(`/LicensedUsers/${encodeURIComponent(userId)}`, {
+        method: 'DELETE'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to revoke license: ${response.status}`);
-      }
     } catch (error) {
       console.error('Error revoking VB365 license:', error);
       throw error;
@@ -1555,27 +1504,42 @@ class VeeamApiClient {
   }
 
   async generateVB365LicenseReport(startTime: string, endTime: string): Promise<Blob> {
+    // Note: This method requires blob response support in Go backend
+    // For now, use requestVBM to make the request through Go backend
     try {
-      const token = this.vbmToken;
-      const response = await fetch('/api/vbm/Reports/LicenseOverview', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      // Get the VBM server
+      const server = await this.getServerForProduct('vbm');
+
+      // Ensure server is authenticated  
+      const tokenStatus = await goBackendClient.getTokenStatus(server.id);
+      if (!tokenStatus.hasToken || tokenStatus.isExpired) {
+        await goBackendClient.authenticateServer(server.id);
+      }
+
+      // Use proxyPost to generate the report
+      // The Go backend will return the PDF data as base64 or handle it appropriately
+      const result = await goBackendClient.proxyPost<{ data?: string; error?: string }>(
+        server.id,
+        '/v7/Reports/LicenseOverview',
+        {
           startTime,
           endTime,
           format: 'PDF',
           timezone: 'GMT'
-        })
-      });
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Failed to generate report: ${response.status}`);
+      // If the backend returns base64 data, convert it to a Blob
+      if (result.data) {
+        const binaryString = atob(result.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: 'application/pdf' });
       }
 
-      return await response.blob();
+      throw new Error('No report data returned');
     } catch (error) {
       console.error('Error generating VB365 license report:', error);
       throw error;
@@ -1601,19 +1565,10 @@ class VeeamApiClient {
 
   async rescanVB365Proxy(proxyId: string): Promise<void> {
     try {
-      const token = this.vbmToken;
-      const response = await fetch(`/api/vbm/Proxies/${encodeURIComponent(proxyId)}`, {
+      await this.requestVBM<void>(`/Proxies/${encodeURIComponent(proxyId)}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ action: 'rescan' })
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to rescan proxy: ${response.status}`);
-      }
     } catch (error) {
       console.error('Error rescanning VB365 proxy:', error);
       throw error;
@@ -1622,19 +1577,10 @@ class VeeamApiClient {
 
   async setVB365ProxyMaintenanceMode(proxyId: string, enabled: boolean): Promise<void> {
     try {
-      const token = this.vbmToken;
-      const response = await fetch(`/api/vbm/Proxies/${encodeURIComponent(proxyId)}`, {
+      await this.requestVBM<void>(`/Proxies/${encodeURIComponent(proxyId)}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ action: enabled ? 'enableMaintenance' : 'disableMaintenance' })
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to set maintenance mode: ${response.status}`);
-      }
     } catch (error) {
       console.error('Error setting VB365 proxy maintenance mode:', error);
       throw error;

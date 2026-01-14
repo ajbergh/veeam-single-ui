@@ -1,3 +1,32 @@
+/**
+ * Job Details Header Component
+ *
+ * Header bar for the job details page with job info and action buttons:
+ * - Job name and status display
+ * - Quick action buttons for job control
+ * - Navigation back to jobs list
+ *
+ * Features:
+ * - Status badge with color coding
+ * - Start/Stop job buttons with toast notifications
+ * - Retry failed jobs
+ * - Enable/Disable job scheduling
+ * - Refresh data button
+ * - Back navigation link
+ *
+ * Actions:
+ * - Start: Trigger immediate job run
+ * - Stop: Abort running job
+ * - Retry: Re-run failed job
+ * - Enable/Disable: Toggle job scheduling
+ *
+ * Props:
+ * - job: VeeamBackupJob object with current job data
+ * - onRefresh: Callback to refresh job data after actions
+ *
+ * @module components/job-details-header
+ */
+
 "use client"
 
 import { VeeamBackupJob } from "@/lib/types/veeam"

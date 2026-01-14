@@ -1,4 +1,22 @@
-// Veeam Backup & Replication API Types
+/**
+ * Veeam Backup & Replication API Types
+ *
+ * TypeScript type definitions for the VBR REST API v1.3-rev1.
+ * These types are used throughout the application for type-safe API interactions.
+ *
+ * Categories:
+ * - Job Types: Backup job configurations and status
+ * - Session Types: Job execution history and results
+ * - Infrastructure Types: Proxies, repositories, managed servers
+ * - Inventory Types: VMs, physical machines, cloud instances
+ * - Security Types: Malware events, best practices, RBAC
+ * - License Types: Instance and capacity licensing
+ *
+ * API Reference:
+ * https://helpcenter.veeam.com/docs/backup/vbr_rest/reference/vbr-rest-v1-3-rev1.html
+ *
+ * @module lib/types/veeam
+ */
 
 // Job Types
 export type JobType =

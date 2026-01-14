@@ -1,3 +1,16 @@
+/**
+ * Theme Scale Selector Component
+ *
+ * Toggle group for UI scaling/density:
+ * - None: Default scale
+ * - XS: Extra small (compact)
+ * - LG: Large (spacious)
+ *
+ * Adjusts spacing and sizing throughout the UI.
+ *
+ * @module components/theme-customizer/theme-scale-selector
+ */
+
 "use client";
 
 

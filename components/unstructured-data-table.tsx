@@ -1,3 +1,34 @@
+/**
+ * Unstructured Data Table Component
+ *
+ * Displays VBR unstructured data backup inventory (file shares, NAS):
+ * - File share sources and their protection status
+ * - NAS backup job associations
+ * - Storage consumption tracking
+ *
+ * Features:
+ * - Sorting by name, type, size, protection status
+ * - Filtering by source type and backup status
+ * - Search across share names and paths
+ * - Column visibility customization
+ * - Pagination for large datasets
+ * - Action menu: Create backup, restore, view details
+ *
+ * Columns:
+ * - Name: Share/volume name
+ * - Type: File share protocol (SMB, NFS)
+ * - Path: UNC or mount path
+ * - Size: Total/used capacity
+ * - Protected: Protection status indicator
+ * - Last Backup: Most recent backup timestamp
+ *
+ * Props:
+ * - data: Array of unstructured data source objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/unstructured-data-table
+ */
+
 "use client"
 
 import * as React from "react"

@@ -1,3 +1,34 @@
+/**
+ * Discovered Entities Table Component
+ *
+ * Displays VBR discovered entities (agents) from protection groups:
+ * - Physical servers with Veeam agent installed
+ * - Cloud instances (AWS EC2, Azure VMs, GCP instances)
+ * - Agent health and version information
+ *
+ * Features:
+ * - Sorting by name, type, status, and last connection
+ * - Filtering by agent status and platform
+ * - Search across entity names and hostnames
+ * - Column visibility customization
+ * - Pagination for large environments
+ * - Action menu: Deploy agent, rescan, remove
+ *
+ * Columns:
+ * - Name: Entity/machine name
+ * - Type: Platform type (Windows, Linux, Cloud)
+ * - Agent Status: Installed, Outdated, Not Installed
+ * - Last Connection: Most recent agent check-in
+ * - Version: Agent version number
+ *
+ * Props:
+ * - entities: Array of VeeamDiscoveredEntity objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh entity data
+ *
+ * @module components/discovered-entities-table
+ */
+
 "use client"
 
 import * as React from "react"

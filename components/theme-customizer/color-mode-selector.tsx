@@ -1,3 +1,19 @@
+/**
+ * Color Mode Selector Component
+ *
+ * Toggle group for selecting light/dark/system color mode:
+ * - Light mode: Always light theme
+ * - Dark mode: Always dark theme
+ * - System: Follow OS preference
+ *
+ * Features:
+ * - Three-way toggle group
+ * - Uses next-themes for mode management
+ * - Skeleton during hydration to prevent flash
+ *
+ * @module components/theme-customizer/color-mode-selector
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";

@@ -1,3 +1,28 @@
+/**
+ * Backup Proxies Table Component
+ *
+ * Displays VBR backup proxies in an interactive data table with:
+ * - Status monitoring: Online/Offline indicators with health checks
+ * - Performance tracking: Concurrent task utilization
+ * - Transport modes: Virtual Appliance, Network, Direct SAN
+ * - Maintenance mode: Visual indicator and toggle capability
+ *
+ * Features:
+ * - Sorting by name, status, type, and task count
+ * - Filtering by transport mode and status
+ * - Column visibility toggle for customization
+ * - Pagination for environments with many proxies
+ * - Action menu: Enable/disable, maintenance mode, delete
+ * - Toast notifications for action results
+ *
+ * Props:
+ * - proxies: Array of VeeamProxy objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh proxy data
+ *
+ * @module components/backup-proxies-table
+ */
+
 "use client";
 
 import * as React from "react";

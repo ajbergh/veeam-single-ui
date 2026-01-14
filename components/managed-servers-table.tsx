@@ -1,3 +1,26 @@
+/**
+ * Managed Servers Table Component
+ *
+ * Displays VBR managed backup infrastructure servers with:
+ * - Server details: Name, type, description, version
+ * - Status monitoring: Connection state indicators
+ * - Type categorization: VMware, Hyper-V, Windows, Linux servers
+ *
+ * Features:
+ * - Sorting by name, type, and version
+ * - Filtering by server type
+ * - Column visibility toggle
+ * - Search functionality
+ * - Loading skeleton states
+ * - Responsive table layout
+ *
+ * Props:
+ * - servers: Array of ManagedServer objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/managed-servers-table
+ */
+
 "use client"
 
 import * as React from "react"

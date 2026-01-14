@@ -1,3 +1,26 @@
+/**
+ * Recovery Plans Table Component
+ *
+ * Displays Veeam Recovery Orchestrator (VRO) recovery plans with:
+ * - Plan information: Name, description, VM counts
+ * - Execution status: Last test result, last run time
+ * - State: Enabled/Disabled, Ready/Not Ready
+ * - Configuration: Failover type, network settings
+ *
+ * Features:
+ * - Sorting by name, status, and last run
+ * - Search by plan name
+ * - Status color coding (Success=green, Warning=yellow, Failed=red)
+ * - Loading skeleton state
+ * - Responsive table layout
+ *
+ * Props:
+ * - data: Array of VRORecoveryPlan objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/recovery-plans-table
+ */
+
 "use client"
 
 import * as React from "react"

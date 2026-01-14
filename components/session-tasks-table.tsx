@@ -1,3 +1,31 @@
+/**
+ * Session Tasks Table Component
+ *
+ * Displays individual task details within a VBR backup session:
+ * - Task-level breakdown of session operations
+ * - Per-VM or per-object backup status
+ * - Transfer statistics per task
+ *
+ * Features:
+ * - Status indicators per task (Success, Warning, Failed, Running)
+ * - Data transfer metrics: Read, Transferred, Processed
+ * - Duration tracking per task
+ * - Scrollable for sessions with many tasks
+ * - Loading state handling
+ *
+ * Columns:
+ * - Name: Object/VM being processed
+ * - Status: Task result with color coding
+ * - Read/Transferred: Data transfer sizes
+ * - Duration: Task execution time
+ *
+ * Props:
+ * - tasks: Array of VeeamTaskSession objects
+ * - loading: Boolean for loading state
+ *
+ * @module components/session-tasks-table
+ */
+
 "use client"
 
 import * as React from "react"

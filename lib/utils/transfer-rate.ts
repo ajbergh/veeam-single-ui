@@ -1,10 +1,27 @@
-// Utility functions for calculating transfer rates from session data
+/**
+ * Transfer Rate Utilities
+ *
+ * Functions for calculating and formatting backup transfer rate data
+ * from VBR session information.
+ *
+ * Functions:
+ * - calculateTransferRates: Aggregate sessions into hourly data points
+ * - formatHourKey: Format date to hour key for grouping
+ * - formatTransferRate: Human-readable rate formatting (MB/s, GB/s)
+ *
+ * Used by the TransferRateChart component for 24-hour throughput visualization.
+ *
+ * @module lib/utils/transfer-rate
+ */
 
 import { VeeamSession, TransferRateDataPoint } from '@/lib/types/veeam';
 
 /**
- * Calculate transfer rate data points from sessions over the last 24 hours
- * Groups sessions by hour and calculates average transfer rates
+ * Calculate transfer rate data points from sessions over the last 24 hours.
+ * Groups sessions by hour and calculates average transfer rates.
+ *
+ * @param sessions - Array of VBR sessions to analyze
+ * @returns Array of hourly data points with average rates
  */
 export function calculateTransferRates(sessions: VeeamSession[]): TransferRateDataPoint[] {
     // Get current time and 24 hours ago

@@ -1,3 +1,34 @@
+/**
+ * HexGrid Protection View Component
+ *
+ * Interactive hexagonal grid visualization for protected workload status:
+ * - Visual protection map with hexagonal cells for each workload
+ * - Color-coded status: Green (protected within RPO), Orange (outside RPO)
+ * - Hover tooltips showing workload details
+ * - Click-to-detail dialog with full workload information
+ *
+ * Features:
+ * - Responsive grid that adapts to container size
+ * - Search and filtering by workload type and status
+ * - Type icons: Server, Monitor, Cloud, Database, etc.
+ * - RPO-based protection status calculation
+ * - Smooth zoom and pan interactions
+ * - Loading states with skeleton placeholders
+ *
+ * Workload Types Supported:
+ * - VmwareVm, HyperVVm, NutanixVm: Virtual machines
+ * - AmazonEc2Instance, AzureVm, GcpInstance: Cloud instances
+ * - PhysicalMachine: Physical servers
+ * - NasBackup, FileShare: NAS and file systems
+ *
+ * Props:
+ * - workloads: Array of VeeamProtectedWorkload objects
+ * - loading: Boolean for loading state
+ * - rpoCriticalHours: Hours threshold for RPO warning (default: 24)
+ *
+ * @module components/hexgrid-protection-view
+ */
+
 "use client"
 
 import * as React from "react"

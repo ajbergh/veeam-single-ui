@@ -1,0 +1,5 @@
+{
+    "chat.agent.maxRequests": 999,
+    "terminal.integrated.accessibleViewFocusOnCommandExecution": true,
+    "terminal.integrated.shellIntegration.enabled": true
+}

@@ -1,3 +1,18 @@
+/**
+ * Theme Radius Selector Component
+ *
+ * Toggle group for border radius settings:
+ * - None: Sharp corners
+ * - SM: Small radius
+ * - MD: Medium radius
+ * - LG: Large radius
+ * - XL: Extra large radius
+ *
+ * Controls the --radius CSS variable for consistent border rounding.
+ *
+ * @module components/theme-customizer/theme-radius-selector
+ */
+
 "use client";
 
 

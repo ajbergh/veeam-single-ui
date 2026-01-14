@@ -1,9 +1,32 @@
+/**
+ * Storage Capacity Widget Component
+ *
+ * Displays backup storage statistics in a dashboard card:
+ * - Total backup size: Aggregate size of all backup files
+ * - Total data size: Original source data size
+ * - Deduplication ratio: Space savings from dedup
+ * - Compression ratio: Space savings from compression
+ *
+ * Features:
+ * - Auto-fetches data on mount
+ * - Human-readable byte formatting (KB, MB, GB, TB)
+ * - Loading skeleton state
+ * - Error handling with display
+ * - Icon indicators for each metric
+ *
+ * Data Source:
+ * Calculates aggregates from /backups and /backupFiles API endpoints
+ *
+ * @module components/storage-capacity-widget
+ */
+
 "use client"
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Database, ArrowDownToLine, Zap } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { veeamApi } from "@/lib/api/veeam-client"
 
 interface StorageCapacityData {
     totalBackupSize: number
@@ -32,17 +55,18 @@ export function StorageCapacityWidget() {
         const fetchData = async () => {
             try {
                 setLoading(true)
-                // First, check if we have results, if not, it might be calculating
-                const res = await fetch('/api/vbr/StorageCapacity')
-                if (!res.ok) throw new Error('Failed to fetch storage data')
-                const json = await res.json()
-
-                if (json.totalBackupSize === 0 && json.backupCount > 0) {
-                    // If we have backups but 0 size, it might be weird, but let's accept it for now.
-                    // Or if json returns empty default structure
-                }
-
-                setData(json)
+                // Use the veeamApi client which routes through Go backend
+                const capacityData = await veeamApi.getStorageCapacity()
+                
+                // Map to the expected format
+                setData({
+                    totalBackupSize: capacityData.totalBackupSize,
+                    totalDataSize: capacityData.totalUsedSpace,
+                    avgDedupRatio: 0, // Not available from API
+                    avgCompressRatio: 0, // Not available from API
+                    fileCount: capacityData.restorePointCount,
+                    backupCount: capacityData.backupCount
+                })
             } catch (err) {
                 console.error(err)
                 setError("Failed to load storage capacity")

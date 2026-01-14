@@ -1,3 +1,28 @@
+/**
+ * VBR Restore Points Calendar Component
+ *
+ * Interactive calendar visualization for VBR backup restore points with:
+ * - Month/Week/Day views for different time scales
+ * - Visual indicators for days with restore points
+ * - Popover details showing restore point information
+ * - Navigation controls for browsing dates
+ *
+ * Features:
+ * - Three view modes: Month (default), Week, Day
+ * - Color-coded restore point counts per day
+ * - Popover on click showing restore point details:
+ *   - Backup name, type, size, creation time
+ * - Today highlighting for quick reference
+ * - Responsive grid layout
+ *
+ * Props:
+ * - data: Array of VeeamRestorePoint objects
+ *
+ * Date Library: date-fns for all date manipulation
+ *
+ * @module components/vbr-restore-points-calendar
+ */
+
 "use client"
 
 import { useState } from "react"

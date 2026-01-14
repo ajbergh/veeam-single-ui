@@ -1,3 +1,28 @@
+/**
+ * VBM Organizations Table Component
+ *
+ * Displays Veeam Backup for Microsoft 365 organizations (M365 tenants) with:
+ * - Tenant information: Name, region, backup status
+ * - Storage usage: Repository consumption per organization
+ * - Protected item counts: Users, groups, sites, teams
+ * - Connection status: Online/offline indicators
+ *
+ * Features:
+ * - Sorting by name, status, and item counts
+ * - Filtering by organization status
+ * - Column visibility customization
+ * - Search by organization name
+ * - Action menu: Refresh, configure, delete
+ * - Storage capacity visualization
+ *
+ * Props:
+ * - organizations: Array of VBMOrganization objects
+ * - loading: Boolean for loading state
+ * - onRefresh: Callback to refresh organization data
+ *
+ * @module components/vbm-organizations-table
+ */
+
 "use client"
 
 import * as React from "react"

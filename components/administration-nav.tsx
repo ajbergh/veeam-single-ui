@@ -1,3 +1,22 @@
+/**
+ * Administration Nav Component
+ *
+ * Sidebar navigation for administration pages:
+ * - Servers, Identity, Licensing, Branding sections
+ * - Responsive layout: horizontal on mobile, vertical on desktop
+ *
+ * Features:
+ * - Active route highlighting based on current pathname
+ * - Ghost button styling for navigation links
+ * - Flexible layout adapting to screen size
+ *
+ * Props:
+ * - items: Array of {href, title} navigation items
+ * - className: Optional additional CSS classes
+ *
+ * @module components/administration-nav
+ */
+
 "use client"
 
 import Link from "next/link"

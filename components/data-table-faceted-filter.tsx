@@ -1,3 +1,29 @@
+/**
+ * Data Table Faceted Filter Component
+ *
+ * TanStack Table-integrated multi-select filter with faceted counts.
+ * Designed to work with table column filtering system.
+ *
+ * Features:
+ * - Integrates with TanStack Table column filtering
+ * - Command palette style search within options
+ * - Automatic faceted counting using getFacetedUniqueValues
+ * - Multi-select with visual checkmarks
+ * - Clear selection functionality
+ * - Badge display for selected values
+ *
+ * Props:
+ * - column: TanStack Table Column instance
+ * - title: Filter label
+ * - options: Array of {label, value, icon} objects
+ *
+ * Usage:
+ * Used alongside useReactTable with getFacetedRowModel and getFacetedUniqueValues
+ * enabled to provide accurate counts per filter option.
+ *
+ * @module components/data-table-faceted-filter
+ */
+
 "use client"
 
 import * as React from "react"
