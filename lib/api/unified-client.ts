@@ -86,6 +86,7 @@ export async function getConfiguredServers(productType: GoBackendServer['product
       vbm: { urlVar: 'VBM_API_URL', defaultName: 'VBM (Environment)' },
       vb365: { urlVar: 'VBM_API_URL', defaultName: 'VB365 (Environment)' },
       k10: { urlVar: 'K10_API_URL', defaultName: 'K10 (Environment)' },
+      vone: { urlVar: 'VEEAM_ONE_API_URL', defaultName: 'Veeam ONE (Environment)' },
     };
 
     const config = envMapping[productType];

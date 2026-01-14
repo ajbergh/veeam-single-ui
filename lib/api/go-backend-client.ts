@@ -12,7 +12,7 @@
 export interface GoBackendServer {
   id: string;
   name: string;
-  productType: 'vbr' | 'vro' | 'vbm' | 'vb365' | 'k10';
+  productType: 'vbr' | 'vro' | 'vbm' | 'vb365' | 'k10' | 'vone';
   apiUrl: string;
   username: string;
   verifySSL?: boolean;
@@ -25,7 +25,7 @@ export interface GoBackendServer {
 
 export interface CreateServerRequest {
   name: string;
-  productType: 'vbr' | 'vro' | 'vbm' | 'vb365' | 'k10';
+  productType: 'vbr' | 'vro' | 'vbm' | 'vb365' | 'k10' | 'vone';
   apiUrl: string;
   username: string;
   password: string;
@@ -98,6 +98,7 @@ export interface SetupStatusResponse {
   hasVbmServer: boolean;
   hasVb365Server: boolean;
   hasK10Server: boolean;
+  hasVoneServer: boolean;
   totalServers: number;
   serversByType: Record<string, number>;
   lastSetupAt?: string;
@@ -117,6 +118,7 @@ export interface WizardStepInput {
   vbrServer?: ServerSetupInput;
   vroServer?: ServerSetupInput;
   vbmServer?: ServerSetupInput;
+  voneServer?: ServerSetupInput;
   k10Server?: ServerSetupInput;
 }
 

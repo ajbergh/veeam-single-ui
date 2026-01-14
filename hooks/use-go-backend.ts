@@ -368,6 +368,8 @@ export function useSetupWizard() {
     hasVbrServer: boolean;
     hasVroServer: boolean;
     hasVbmServer: boolean;
+    hasVoneServer: boolean;
+    hasK10Server: boolean;
     totalServers: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -381,6 +383,8 @@ export function useSetupWizard() {
         hasVbrServer: false,
         hasVroServer: false,
         hasVbmServer: false,
+        hasVoneServer: false,
+        hasK10Server: false,
         totalServers: 0,
       });
       return;
@@ -400,6 +404,8 @@ export function useSetupWizard() {
         hasVbrServer: false,
         hasVroServer: false,
         hasVbmServer: false,
+        hasVoneServer: false,
+        hasK10Server: false,
         totalServers: 0,
       });
     } finally {
@@ -440,6 +446,14 @@ export function useSetupWizard() {
       testConnect?: boolean;
     };
     vbmServer?: {
+      name: string;
+      apiUrl: string;
+      username: string;
+      password: string;
+      verifySSL: boolean;
+      testConnect?: boolean;
+    };
+    voneServer?: {
       name: string;
       apiUrl: string;
       username: string;

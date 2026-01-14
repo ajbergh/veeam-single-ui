@@ -11,6 +11,7 @@ const (
 	ProductTypeVBM   ProductType = "vbm"
 	ProductTypeVB365 ProductType = "vb365"
 	ProductTypeK10   ProductType = "k10"
+	ProductTypeVONE  ProductType = "vone"
 )
 
 // Server represents a Veeam server connection
@@ -78,7 +79,7 @@ func (s *ServerInput) Validate() error {
 // IsValid checks if the product type is valid
 func (p ProductType) IsValid() bool {
 	switch p {
-	case ProductTypeVBR, ProductTypeVRO, ProductTypeVBM, ProductTypeVB365, ProductTypeK10:
+	case ProductTypeVBR, ProductTypeVRO, ProductTypeVBM, ProductTypeVB365, ProductTypeK10, ProductTypeVONE:
 		return true
 	default:
 		return false

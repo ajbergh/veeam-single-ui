@@ -86,6 +86,20 @@ A Next.js 15 application providing a unified monitoring dashboard for Veeam Data
   - **Backup Proxies**: Status, CPU/Memory usage, version, roles, and actions (rescan, maintenance mode)
   - **Backup Repositories**: Capacity visualization, retention settings, immutability, encryption status
 
+### Veeam ONE (Analytics & Monitoring)
+- **Dashboards**: Custom dashboard views for infrastructure monitoring
+- **Reports**: Access to Veeam ONE report templates and execution
+  - **Report Catalog**: Browse available report templates with categories and descriptions
+  - **Report Parameters**: Configure report parameters before execution
+  - **Saved Reports**: View and manage previously generated reports
+- **Alarms**: Veeam ONE alarm monitoring and management
+- **Threat Center**: Security threat monitoring and analysis
+- **API Integration**:
+  - **Default Port**: 1239 (Veeam ONE Web Services)
+  - **API Version**: v2.3
+  - **Authentication**: OAuth 2.0 token-based authentication
+  - **Swagger UI**: Available at `/swagger/index.html`
+
 ### Administration & Branding
 - **Licensing**: 
   - **Tabbed Interface**: Toggle between VBR and VB365 license views
@@ -200,6 +214,7 @@ npm run dev
   - Veeam Backup & Replication REST API (v1.3-rev1) - **Required**
   - Veeam Recovery Orchestrator REST API (v7.21) - Optional
   - Veeam Backup for Microsoft 365 REST API (v8) - Optional
+  - Veeam ONE REST API (v2.3) - Optional (Analytics & Monitoring)
 
 ### Environment Variables (Development Mode)
 
@@ -221,6 +236,11 @@ VBM_API_URL=https://your-vbm-server:4443
 VBM_USERNAME=your-vbm-username
 VBM_PASSWORD=your-vbm-password
 
+# Veeam ONE (Optional - Analytics & Monitoring)
+VONE_API_URL=https://your-veeam-one-server:1239
+VONE_USERNAME=your-vone-username
+VONE_PASSWORD=your-vone-password
+
 # Go Backend (Optional - enables caching, rate limiting, multi-server support)
 NEXT_PUBLIC_GO_BACKEND_URL=http://localhost:8080
 
@@ -228,7 +248,7 @@ NEXT_PUBLIC_GO_BACKEND_URL=http://localhost:8080
 NODE_TLS_REJECT_UNAUTHORIZED=0
 ```
 
-**Note**: VBR configuration is required. VRO and VBM are optional - their respective pages will display an error message if not configured.
+**Note**: VBR configuration is required. VRO, VBM, and Veeam ONE are optional - their respective pages will display an error message if not configured.
 
 ### With Go Backend (Production Mode)
 
@@ -349,29 +369,51 @@ See [CONTAINER.md](./CONTAINER.md) for detailed instructions on building and run
   - `/v8/Reports/GenerateLicenseOverview` - PDF report generation
   - `/v8/Health` - API service health
 
+### Veeam ONE
+- **API Version**: v2.3
+- **Default Port**: 1239
+- **Authentication**: OAuth 2.0 (token-based with refresh tokens)
+- **Token Endpoint**: `/api/token`
+- **Swagger UI**: `https://<hostname>:1239/swagger/index.html`
+- **Documentation**: [Veeam ONE REST API Reference](https://helpcenter.veeam.com/references/one/13/rest/)
+- **Endpoints Used**:
+  - `/api/token` - OAuth 2.0 token endpoint (grant_type: password or refresh_token)
+  - `/api/revoke` - Token revocation
+  - `/api/v2.3/sessions` - Task sessions
+  - `/api/v2.3/dataCollection/tasks` - Data collection tasks
+  - `/api/v2.3/dataCollection/schedule` - Collection schedule
+  - `/api/v2.3/license` - License information
+  - `/api/v2.3/alarms` - Alarm management
+  - `/api/v2.3/reports` - Report templates and execution
+
 ## Project Structure
 
 ```
 ├── app/
 │   ├── administration/               # Administration Area
 │   │   ├── branding/                 # Branding settings (Theme Customizer)
+│   │   ├── identity/                 # User & Identity management
 │   │   ├── licensing/                # Licensing reports & status
+│   │   ├── servers/                  # Server connections & cache management
+│   │   │   ├── connections/          # Server connection management
+│   │   │   └── cache/                # Cache management UI
 │   │   └── layout.tsx                # Administration layout
+│   ├── analytics/                    # Veeam ONE Analytics
+│   │   ├── alarms/                   # Alarm monitoring
+│   │   ├── dashboards/               # Custom dashboards
+│   │   ├── reports/                  # Report catalog & execution
+│   │   ├── saved-reports/            # Previously generated reports
+│   │   ├── threat-center/            # Security threat monitoring
+│   │   └── actions.ts                # Analytics server actions
 │   ├── api/                          # API routes (secure proxy to Veeam APIs)
-│   │   ├── veeam/                    # VBR API routes
-│   │   │   ├── auth/                 # VBR authentication
-│   │   │   ├── jobs/                 # Backup jobs endpoint
-│   │   │   ├── sessions/             # Job sessions endpoint
-│   │   │   ├── backupInfrastructure/ # Infrastructure endpoints
-│   │   │   ├── license/              # License endpoints (inc. reports)
-│   │   │   ├── malware-detection/    # Malware events
-│   │   │   └── security/             # Security best practices
+│   │   ├── veeam/                    # VBR API routes (alias)
+│   │   ├── vbr/                      # VBR API routes
 │   │   ├── vro/                      # VRO API routes
-│   │   └── vbm/                      # VBM API routes
-│   │       ├── LicensedUsers/        # Licensed user management
-│   │       ├── Proxies/              # Proxy servers
-│   │       ├── Reports/              # PDF report generation
-│   │       └── ...                   # Other VBM endpoints
+│   │   ├── vbm/                      # VBM API routes
+│   │   └── veeam-one/                # Veeam ONE API routes
+│   ├── setup/                        # First-time setup wizard
+│   │   ├── page.tsx                  # Setup wizard page
+│   │   └── layout.tsx                # Setup layout
 │   ├── vbr/                          # VBR monitoring pages
 │   │   ├── dashboard/                # VBR dashboard with stats
 │   │   ├── jobs/                     # Jobs list and details
@@ -386,42 +428,70 @@ See [CONTAINER.md](./CONTAINER.md) for detailed instructions on building and run
 │   │   ├── protected-items/          # Protected objects view
 │   │   ├── organizations/            # M365 organizations
 │   │   └── infrastructure/           # Backup infrastructure
-│   │       ├── proxies/              # Backup proxies page
-│   │       └── repositories/         # Backup repositories page
+│   ├── vb365/                        # VB365 alias routes
 │   ├── k10/                          # K10 placeholder page
 │   ├── layout.tsx                    # Root layout with sidebar & theme provider
 │   └── page.tsx                      # Home (redirects to /vbr/dashboard)
+├── backend/                          # Go Backend
+│   ├── cmd/
+│   │   └── server/                   # Main server entry point
+│   ├── internal/
+│   │   ├── handlers/                 # API handlers (auth, proxy, cache)
+│   │   ├── crypto/                   # AES-256-GCM encryption
+│   │   ├── storage/                  # SQLite credential storage
+│   │   └── cache/                    # Response caching layer
+│   ├── Makefile                      # Build commands
+│   └── README.md                     # Backend documentation
+├── build/                            # Build scripts
+│   ├── Build-Windows.ps1             # Windows standalone build
+│   ├── build-linux.sh                # Linux standalone build
+│   ├── build-macos.sh                # macOS standalone build
+│   └── README.md                     # Build documentation
 ├── components/
 │   ├── ui/                           # shadcn/ui components (20+ components)
-│   ├── theme-customizer/             # Branding components (Radius, Mode, Preset)
-│   │   ├── color-mode-selector.tsx
-│   │   ├── content-layout-selector.tsx
-│   │   ├── preset-selector.tsx
-│   │   └── theme-radius-selector.tsx
+│   ├── analytics/                    # Veeam ONE analytics components
+│   ├── setup-wizard/                 # Setup wizard components
+│   │   ├── server-form.tsx           # Server configuration form with smart defaults
+│   │   ├── wizard-step.tsx           # Step indicator component
+│   │   └── index.ts                  # Module exports
+│   ├── theme-customizer/             # Branding components
+│   ├── administration/               # Administration components
 │   ├── app-header.tsx                # Application header with search
 │   ├── app-sidebar.tsx               # Navigation sidebar
-│   ├── active-theme.tsx              # Theme state management component
-│   ├── administration-nav.tsx        # Administration sidebar
+│   ├── active-theme.tsx              # Theme state management
 │   ├── dashboard-stats.tsx           # Dashboard statistics cards
-│   ├── sessions-overview.tsx         # Recent sessions widget with chart
+│   ├── sessions-overview.tsx         # Recent sessions widget
 │   ├── transfer-rate-chart.tsx       # Transfer rate visualization
-│   ├── job-details-header.tsx        # Job details header component
+│   ├── security-widget.tsx           # Security score widget
+│   ├── storage-capacity-widget.tsx   # Storage capacity widget
+│   ├── hexgrid-protection-view.tsx   # HexGrid protection visualization
 │   ├── vbr-restore-points-calendar.tsx # VBR Calendar View
 │   ├── vbm-restore-points-calendar.tsx # VBM Calendar View
-│   ├── hexgrid-protection-view.tsx   # HexGrid protection visualization
 │   └── ...                           # Various data tables
+├── hooks/
+│   ├── use-go-backend.ts             # Go backend hooks
+│   └── use-mobile.ts                 # Mobile detection hook
 ├── lib/
 │   ├── api/
-│   │   └── veeam-client.ts           # API client utilities
+│   │   ├── veeam-client.ts           # Unified API client
+│   │   ├── veeam-one-client.ts       # Veeam ONE API client
+│   │   ├── go-backend-client.ts      # Go backend client
+│   │   └── unified-client.ts         # Multi-product unified client
 │   ├── types/
 │   │   ├── veeam.ts                  # VBR TypeScript types
-│   │   └── vbm.ts                    # VBM TypeScript types
-│   └── utils/
-│       ├── utils.ts                  # General utilities
-│       ├── transfer-rate.ts          # Transfer rate calculations
-│       └── rate-limiter.ts           # API rate limiting
-├── hooks/
-│   └── use-mobile.ts                 # Mobile detection hook
+│   │   ├── vbm.ts                    # VBM TypeScript types
+│   │   ├── vbm-dashboard.ts          # VBM dashboard types
+│   │   └── veeam-one.ts              # Veeam ONE types
+│   ├── config/                       # Configuration utilities
+│   ├── context/                      # React contexts
+│   ├── utils/
+│   │   ├── utils.ts                  # General utilities
+│   │   ├── transfer-rate.ts          # Transfer rate calculations
+│   │   └── rate-limiter.ts           # API rate limiting
+│   └── themes.ts                     # Theme configuration
+├── docs/                             # Documentation
+│   ├── GO_BACKEND_ARCHITECTURE.md    # Go backend architecture
+│   └── GO_BACKEND_IMPLEMENTATION.md  # Implementation status
 └── public/
     ├── favicon.ico                   # Application favicon
     └── logo.webp                     # Application logo
@@ -431,12 +501,14 @@ See [CONTAINER.md](./CONTAINER.md) for detailed instructions on building and run
 
 - **Framework**: [Next.js 15](https://nextjs.org/docs) with App Router and Turbopack
 - **Language**: [TypeScript 5](https://www.typescriptlang.org/)
+- **Backend**: [Go 1.22+](https://go.dev/) (optional, for caching and multi-server support)
 - **UI Components**: [shadcn/ui](https://ui.shadcn.com/) built on [Radix UI](https://www.radix-ui.com/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
 - **Charts**: [Recharts](https://recharts.org/)
 - **Data Tables**: [TanStack Table](https://tanstack.com/table/latest)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Theme**: [next-themes](https://github.com/pacocoursey/next-themes)
+- **Database**: SQLite (for encrypted credential storage)
 
 ## Documentation
 
@@ -444,8 +516,11 @@ See [CONTAINER.md](./CONTAINER.md) for detailed instructions on building and run
 - [Veeam Backup & Replication REST API](https://helpcenter.veeam.com/docs/backup/vbr_rest/)
 - [Veeam Recovery Orchestrator REST API](https://helpcenter.veeam.com/references/vro/)
 - [Veeam Backup for Microsoft 365 REST API](https://helpcenter.veeam.com/docs/vbo365/rest/)
+- [Veeam ONE REST API](https://helpcenter.veeam.com/references/one/13/rest/)
 
 ### Application Documentation
+- [Go Backend Architecture](./docs/GO_BACKEND_ARCHITECTURE.md)
+- [Go Backend Implementation Status](./docs/GO_BACKEND_IMPLEMENTATION.md)
 - [Container Deployment Guide](./CONTAINER.md)
 - [Troubleshooting Guide](./TROUBLESHOOTING.md) - Solutions for common issues including 403 errors
 

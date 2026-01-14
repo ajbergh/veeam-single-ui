@@ -31,6 +31,7 @@ type SetupStatusResponse struct {
 	HasVBMServer   bool           `json:"hasVbmServer"`
 	HasVB365Server bool           `json:"hasVb365Server"`
 	HasK10Server   bool           `json:"hasK10Server"`
+	HasVONEServer  bool           `json:"hasVoneServer"`
 	TotalServers   int            `json:"totalServers"`
 	ServersByType  map[string]int `json:"serversByType"`
 	LastSetupAt    *time.Time     `json:"lastSetupAt,omitempty"`
@@ -49,6 +50,7 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 		models.ProductTypeVBM,
 		models.ProductTypeVB365,
 		models.ProductTypeK10,
+		models.ProductTypeVONE,
 	}
 
 	for _, pt := range productTypes {
@@ -72,6 +74,7 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 		HasVBMServer:   serversByType["vbm"] > 0,
 		HasVB365Server: serversByType["vb365"] > 0,
 		HasK10Server:   serversByType["k10"] > 0,
+		HasVONEServer:  serversByType["vone"] > 0,
 		TotalServers:   totalServers,
 		ServersByType:  serversByType,
 	}
@@ -88,7 +91,9 @@ type WizardStepInput struct {
 	VROServer *ServerSetupInput `json:"vroServer,omitempty"`
 	// Step 3: VBM/VB365 Server (Optional)
 	VBMServer *ServerSetupInput `json:"vbmServer,omitempty"`
-	// Step 4: K10 Server (Optional)
+	// Step 4: Veeam ONE Server (Optional)
+	VoneServer *ServerSetupInput `json:"voneServer,omitempty"`
+	// Step 5: K10 Server (Optional)
 	K10Server *ServerSetupInput `json:"k10Server,omitempty"`
 }
 
@@ -177,6 +182,21 @@ func (h *SetupHandler) ProcessWizardStep(w http.ResponseWriter, r *http.Request)
 		}
 
 	case 4:
+		// Veeam ONE Server Setup (Optional)
+		if input.VoneServer == nil {
+			// Skip step
+			response.Success = true
+			response.Message = "Veeam ONE setup skipped"
+		} else {
+			result, err := h.setupServer(input.VoneServer, models.ProductTypeVONE, true)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			response = *result
+		}
+
+	case 5:
 		// K10 Server Setup (Optional)
 		if input.K10Server == nil {
 			// Skip step

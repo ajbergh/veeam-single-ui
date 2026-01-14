@@ -272,6 +272,8 @@ func (h *ProxyHandler) addProductHeaders(req *http.Request, productType models.P
 		// VBM might need specific API version headers
 	case models.ProductTypeK10:
 		// K10 uses standard headers
+	case models.ProductTypeVONE:
+		// Veeam ONE uses standard REST API headers
 	}
 }
 

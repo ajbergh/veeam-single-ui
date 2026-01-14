@@ -94,6 +94,7 @@ func (db *DB) migrate() error {
 	migrations := []string{
 		migrationInitial,
 		migrationCache,
+		migrationAddVONE,
 	}
 
 	// Create migrations tracking table
@@ -229,4 +230,35 @@ INSERT OR IGNORE INTO cache_config (endpoint_pattern, ttl_seconds, description) 
 -- Indexes for cache
 CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache_entries(expires_at);
 CREATE INDEX IF NOT EXISTS idx_cache_server ON cache_entries(server_id);
+`
+
+// Migration 3: Add 'vone' (Veeam ONE) as valid product type
+// SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+const migrationAddVONE = `
+-- Create new servers table with vone in the CHECK constraint
+CREATE TABLE IF NOT EXISTS servers_new (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    product_type TEXT NOT NULL CHECK (product_type IN ('vbr', 'vro', 'vbm', 'vb365', 'k10', 'vone')),
+    api_url TEXT NOT NULL,
+    username_encrypted BLOB NOT NULL,
+    password_encrypted BLOB NOT NULL,
+    verify_ssl INTEGER DEFAULT 1,
+    is_default INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Copy existing data
+INSERT INTO servers_new SELECT * FROM servers;
+
+-- Drop old table
+DROP TABLE servers;
+
+-- Rename new table
+ALTER TABLE servers_new RENAME TO servers;
+
+-- Recreate indexes
+CREATE INDEX IF NOT EXISTS idx_servers_product ON servers(product_type);
+CREATE INDEX IF NOT EXISTS idx_servers_default ON servers(product_type, is_default);
 `

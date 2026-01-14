@@ -41,8 +41,10 @@ import {
   Key,
   Database,
   Shield,
-  Cloud
+  Cloud,
+  BarChart
 } from 'lucide-react';
+import { VEEAM_DEFAULT_PORTS, getProductPlaceholderUrl, getProductPortHelpText } from '@/components/setup-wizard/server-form';
 
 const sidebarNavItems = [
   {
@@ -61,6 +63,7 @@ const productTypeLabels: Record<GoBackendServer['productType'], string> = {
   vbm: 'Veeam Backup for Microsoft 365',
   vb365: 'Veeam Backup for Microsoft 365',
   k10: 'Kasten K10',
+  vone: 'Veeam ONE',
 };
 
 const productTypeIcons: Record<GoBackendServer['productType'], React.ReactNode> = {
@@ -69,6 +72,7 @@ const productTypeIcons: Record<GoBackendServer['productType'], React.ReactNode> 
   vbm: <Cloud className="h-4 w-4" />,
   vb365: <Cloud className="h-4 w-4" />,
   k10: <Database className="h-4 w-4" />,
+  vone: <BarChart className="h-4 w-4" />,
 };
 
 export default function ServerConnectionsPage() {
@@ -279,6 +283,7 @@ export default function ServerConnectionsPage() {
                     <SelectItem value="vbr">Veeam Backup & Replication</SelectItem>
                     <SelectItem value="vro">Veeam Recovery Orchestrator</SelectItem>
                     <SelectItem value="vbm">Veeam Backup for Microsoft 365</SelectItem>
+                    <SelectItem value="vone">Veeam ONE</SelectItem>
                     <SelectItem value="k10">Kasten K10</SelectItem>
                   </SelectContent>
                 </Select>
@@ -287,10 +292,13 @@ export default function ServerConnectionsPage() {
                 <Label htmlFor="apiUrl">API URL</Label>
                 <Input
                   id="apiUrl"
-                  placeholder="https://vbr-server:9419"
+                  placeholder={getProductPlaceholderUrl(newServer.productType)}
                   value={newServer.apiUrl}
                   onChange={(e) => setNewServer({ ...newServer, apiUrl: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {getProductPortHelpText(newServer.productType)}
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="username">Username</Label>
