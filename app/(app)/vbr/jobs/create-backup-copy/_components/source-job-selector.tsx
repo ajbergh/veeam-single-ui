@@ -1,3 +1,8 @@
+
+import { enumLabel } from '@/lib/i18n/presentation'
+import { backupCopyMessage } from './presentation'
+
+import { useI18n } from '@/components/providers/i18n-provider'
 import { useState, useEffect } from "react"
 import { veeamApi } from "@/lib/api/veeam-client"
 import { VeeamBackupJob } from "@/lib/types/veeam"
@@ -12,6 +17,8 @@ interface SourceJobSelectorProps {
 }
 
 export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJobSelectorProps) {
+  const { t, formatNumber } = useI18n()
+
     const [searchTerm, setSearchTerm] = useState("")
     const [jobs, setJobs] = useState<VeeamBackupJob[]>([])
     const [loading, setLoading] = useState(true)
@@ -54,7 +61,7 @@ export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJob
             <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search for source backup jobs..."
+                    placeholder={t("Search for source backup jobs...")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9"
@@ -65,16 +72,16 @@ export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJob
                 {/* Available Source Jobs */}
                 <div className="border rounded-md shadow-sm bg-card overflow-hidden">
                     <div className="bg-muted/50 px-4 py-3 font-medium text-sm border-b flex justify-between items-center">
-                        <span>Eligible Jobs</span>
+                        <span>{t("Eligible Jobs")}</span>
                         {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
                     <ScrollArea className="h-[300px]">
                         {error ? (
-                            <div className="p-4 text-center text-sm text-red-500">{error}</div>
+                            <div className="p-4 text-center text-sm text-red-500">{error && backupCopyMessage(t,error)}</div>
                         ) : filteredJobs.length === 0 && !loading ? (
                             <div className="text-center p-8 text-muted-foreground text-sm flex flex-col items-center">
                                 <Copy className="h-8 w-8 mb-3 opacity-20" />
-                                <span>No eligible source jobs found.</span>
+                                <span>{t("No eligible source jobs found.")}</span>
                             </div>
                         ) : (
                             <div className="p-2 space-y-1">
@@ -93,7 +100,7 @@ export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJob
                                                 <div>
                                                     <div className="text-sm font-medium leading-none mb-1.5">{item.name}</div>
                                                     <div className="text-xs text-muted-foreground flex items-center space-x-2">
-                                                        <span>{item.type}</span>
+                                                        <span>{enumLabel(t,item.type)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -109,16 +116,16 @@ export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJob
                 {/* Selected Items */}
                 <div className="border rounded-md shadow-sm bg-card overflow-hidden">
                     <div className="bg-muted/50 px-4 py-3 font-medium text-sm border-b flex justify-between items-center">
-                        <span>Selected Source Jobs</span>
+                        <span>{t("Selected Source Jobs")}</span>
                         <div className="flex items-center space-x-2">
-                            <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">{selectedJobs.length}</span>
+                            <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">{formatNumber(selectedJobs.length)}</span>
                         </div>
                     </div>
                     <ScrollArea className="h-[300px]">
                         {selectedJobs.length === 0 ? (
                             <div className="text-center p-8 text-muted-foreground text-sm flex flex-col items-center justify-center h-full">
                                 <CheckCircle2 className="h-8 w-8 mb-3 opacity-20" />
-                                <span>Select jobs from the list</span>
+                                <span>{t("Select jobs from the list")}</span>
                             </div>
                         ) : (
                             <div className="p-2 space-y-2">
@@ -141,9 +148,7 @@ export function SourceJobSelector({ selectedJobs, onSelectionChange }: SourceJob
                                             size="sm"
                                             onClick={() => toggleSelection(item)}
                                             className="h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mt-1 -mr-1"
-                                        >
-                                            Remove
-                                        </Button>
+                                        > {t("Remove")} </Button>
                                     </div>
                                 ))}
                             </div>

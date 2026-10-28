@@ -23,10 +23,23 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Build
         run: npm run build
+
+      - name: Prepare release notes
+        id: notes
+        shell: bash
+        run: |
+          NOTES="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES" ]; then
+            node scripts/prepare-release-notes.cjs "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" artifacts/github-release.md
+            echo "path=artifacts/github-release.md" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package source zip and checksum
+        run: npm run package:source
 
       - name: Package standalone zip
         shell: bash
@@ -40,22 +53,33 @@ jobs:
           mkdir -p "$OUTDIR"
 
           # Next.js standalone output
-          cp -R .next/standalone/* "$OUTDIR/"
+          cp -R .next/standalone/. "$OUTDIR/"
 
           # Required alongside standalone
           mkdir -p "$OUTDIR/.next"
           cp -R .next/static "$OUTDIR/.next/static"
           if [ -d "public" ]; then cp -R public "$OUTDIR/public"; fi
 
-          # Helpful files
-          if [ -f ".env.example" ]; then cp .env.example "$OUTDIR/"; fi
-          if [ -f "README.md" ]; then cp README.md "$OUTDIR/"; fi
+          # Optional managed HTTPS launcher (Node built-ins; OpenSSL is installed by the operator).
+          mkdir -p "$OUTDIR/scripts" "$OUTDIR/lib/server"
+          cp scripts/https-server.cjs "$OUTDIR/scripts/"
+          cp lib/server/tls-runtime.cjs "$OUTDIR/lib/server/"
+
+          # Include the complete guides and screenshot gallery alongside both release archives.
+          cp -R docs "$OUTDIR/docs"
+          cp .env.example README.md LICENSE CHANGELOG.md CONTAINER.md CONTRIBUTING.md DCO.md STANDALONE.md TROUBLESHOOTING.md "$OUTDIR/"
 
           # Zip
           (cd "$OUTROOT" && zip -r "${APP}-${VERSION}-standalone.zip" "$(basename "$OUTDIR")")
+          (cd "$OUTROOT" && sha256sum "${APP}-${VERSION}-standalone.zip" > "${APP}-${VERSION}-standalone.zip.sha256")
 
       - name: Create GitHub Release and upload zip
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: dist/*.zip
+          body_path: ${{ steps.notes.outputs.path }}
+          generate_release_notes: ${{ steps.notes.outputs.path == '' }}
+          files: |
+            dist/*.zip
+            dist/*.sha256
+            artifacts/*.zip
+            artifacts/*.sha256

@@ -4,10 +4,12 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ActiveThemeProvider } from "@/components/active-theme";
-import { DEFAULT_THEME } from "@/lib/themes";
+import { normalizeTheme, themeOverrides, THEME_COOKIES } from "@/lib/themes";
 import { cookies, headers } from "next/headers";
 import { cn } from "@/lib/utils";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
+import { I18nProvider } from "@/components/providers/i18n-provider";
+import { LOCALE_COOKIE, normalizePreference, resolveLocale } from "@/lib/i18n/model";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,37 +53,33 @@ export default async function RootLayout({
   // ... (keep existing logic)
   const cookieStore = await cookies();
   const headersList = await headers();
+  const languagePreference = normalizePreference(cookieStore.get(LOCALE_COOKIE)?.value);
+  const locale = resolveLocale(languagePreference, headersList.get("accept-language"));
 
   // Check if we're on the connect page (no sidebar needed)
   const pathname = headersList.get("x-pathname") || "";
   const isConnectPage = pathname === "/connect" || pathname.startsWith("/connect");
 
-  const themeSettings = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    preset: (cookieStore.get("theme_preset")?.value ?? DEFAULT_THEME.preset) as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    scale: (cookieStore.get("theme_scale")?.value ?? DEFAULT_THEME.scale) as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    radius: (cookieStore.get("theme_radius")?.value ?? DEFAULT_THEME.radius) as any,
-    contentLayout: (cookieStore.get("theme_content_layout")?.value ??
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      DEFAULT_THEME.contentLayout) as any
-  };
+  const themeSettings = normalizeTheme(Object.fromEntries(
+    Object.entries(THEME_COOKIES).map(([key, cookie]) => [key, cookieStore.get(cookie)?.value])
+  ));
 
   const bodyAttributes = Object.fromEntries(
     Object.entries(themeSettings)
-      .filter(([, value]) => value)
+      .filter(([key, value]) => value && key !== "accentColor" && key !== "chartColor")
       .map(([key, value]) => [`data-theme-${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`, value])
   );
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={cn(`${geistSans.variable} ${geistMono.variable} ${manrope.variable} ${roboto.variable} antialiased bg-background group/layout font-sans`)}
         data-connect-page={isConnectPage ? "true" : undefined}
+        style={themeOverrides(themeSettings) as React.CSSProperties}
         {...bodyAttributes}
       >
+        <I18nProvider initialLocale={locale} initialPreference={languagePreference}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -95,6 +93,7 @@ export default async function RootLayout({
             </PostHogProvider>
           </ActiveThemeProvider>
         </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );

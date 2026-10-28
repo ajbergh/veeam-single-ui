@@ -1,5 +1,7 @@
 "use client"
 
+import { useI18n } from "@/components/providers/i18n-provider"
+import { enumLabel } from "@/lib/i18n/presentation"
 import { Activity, ShieldAlert, Key, Server } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LicenseModel, MalwareEventModel, VeeamServerInfo } from "@/lib/types/veeam"
@@ -22,6 +24,7 @@ export function DashboardStats({
     activeJobs,
     securityItems
 }: DashboardStatsProps) {
+    const { t, formatNumber } = useI18n()
     // Calculate repository stats
     // const totalCapacity = repositories?.reduce((acc, repo) => acc + (repo.capacity || 0), 0) ?? 0
     // const totalFree = repositories?.reduce((acc, repo) => acc + (repo.freeSpace || 0), 0) ?? 0
@@ -53,14 +56,14 @@ export function DashboardStats({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        Total Jobs
+                        {t('Total Jobs')}
                     </CardTitle>
                     <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{totalJobs}</div>
+                    <div className="text-2xl font-bold">{formatNumber(totalJobs)}</div>
                     <p className="text-xs text-muted-foreground">
-                        {activeJobs} active now
+                        {t('{count} active now', { count: formatNumber(activeJobs) })}
                     </p>
                 </CardContent>
             </Card>
@@ -68,13 +71,13 @@ export function DashboardStats({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        VBR Server
+                        {t('VBR Server')}
                     </CardTitle>
                     <Server className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold truncate" title={serverInfo?.name || "Unknown"}>
-                        {serverInfo?.name || "Unknown"}
+                    <div className="text-2xl font-bold truncate" title={serverInfo?.name || t('Unknown')}>
+                        {serverInfo?.name || t('Unknown')}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-muted-foreground">
@@ -92,14 +95,14 @@ export function DashboardStats({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        License Usage
+                        {t('License Usage')}
                     </CardTitle>
                     <Key className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{licenseUsed} / {licenseTotal}</div>
+                    <div className="text-2xl font-bold">{formatNumber(licenseUsed)} / {formatNumber(licenseTotal)}</div>
                     <p className="text-xs text-muted-foreground">
-                        {license?.type || 'Unknown'} License
+                        {t('{type} license', { type: enumLabel(t, license?.type || 'Unknown') })}
                     </p>
                     <div className="mt-2 h-1 w-full bg-secondary rounded-full overflow-hidden">
                         <div
@@ -113,14 +116,14 @@ export function DashboardStats({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        Malware Events
+                        {t('Malware Events')}
                     </CardTitle>
                     <ShieldAlert className={`h-4 w-4 ${activeMalware > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{malwareEvents.length}</div>
+                    <div className="text-2xl font-bold">{formatNumber(malwareEvents.length)}</div>
                     <p className="text-xs text-muted-foreground">
-                        {activeMalware} unresolved
+                        {t('{count} unresolved', { count: formatNumber(activeMalware) })}
                     </p>
                 </CardContent>
             </Card>
@@ -128,14 +131,14 @@ export function DashboardStats({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        Security Score
+                        {t('Security Score')}
                     </CardTitle>
                     <ShieldAlert className={`h-4 w-4 ${securityPercentage < 50 ? 'text-destructive' : 'text-primary'}`} />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{passedChecks} / {totalChecks}</div>
+                    <div className="text-2xl font-bold">{formatNumber(passedChecks)} / {formatNumber(totalChecks)}</div>
                     <p className="text-xs text-muted-foreground">
-                        Passed Checks
+                        {t('Passed Checks')}
                     </p>
                     <div className="mt-2 h-1 w-full bg-secondary rounded-full overflow-hidden">
                         <div

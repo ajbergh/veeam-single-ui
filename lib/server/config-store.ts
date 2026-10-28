@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
-import os from 'os';
+import { encrypt, decrypt, ENCRYPTION_KEY, LEGACY_DEFAULT_KEY } from './encryption';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'sources.json');
@@ -9,62 +8,6 @@ const CONFIG_FILE = path.join(DATA_DIR, 'sources.json');
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// --- Encryption Key Management ---
-
-const LEGACY_DEFAULT_KEY = 'default-secure-key-32-chars-long!!';
-const KEY_FILE_PATH = path.join(os.homedir(), '.open-backup-ui-key');
-
-function getEncryptionKey(): string {
-    // 1. Prefer Environment Variable (Validation/Override)
-    if (process.env.ENCRYPTION_KEY) {
-        return process.env.ENCRYPTION_KEY;
-    }
-
-    // 2. Load from User Home Directory (Machine-specific persistent key)
-    if (fs.existsSync(KEY_FILE_PATH)) {
-        try {
-            return fs.readFileSync(KEY_FILE_PATH, 'utf-8').trim();
-        } catch (e) {
-            console.error('Failed to read encryption key file:', e);
-        }
-    }
-
-    // 3. Generate New Unique Key and Save It
-    try {
-        const newKey = crypto.randomBytes(32).toString('hex');
-        fs.writeFileSync(KEY_FILE_PATH, newKey, { mode: 0o600 }); // Read/write only by owner
-        console.log(`[ConfigStore] Generated new unique encryption key at ${KEY_FILE_PATH}`);
-        return newKey;
-    } catch (e) {
-        console.error('Failed to write encryption key file, falling back to legacy default:', e);
-        return LEGACY_DEFAULT_KEY;
-    }
-}
-
-const ENCRYPTION_KEY = getEncryptionKey();
-const IV_LENGTH = 16;
-const SALT = 'salt'; // Fixed salt for determinism
-
-function encrypt(text: string, keyString: string = ENCRYPTION_KEY): string {
-    const key = crypto.scryptSync(keyString, SALT, 32);
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-function decrypt(text: string, keyString: string = ENCRYPTION_KEY): string {
-    const key = crypto.scryptSync(keyString, SALT, 32);
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
 }
 
 // --- Data Types ---
@@ -76,7 +19,8 @@ export interface VBRSource {
     username: string;
     password?: string; // Only used internally, never returned in list
     protocol: string;
-    platform: 'vbr' | 'vb365' | 'vro' | 'one';
+    platform: 'vbr' | 'vb365' | 'vro' | 'one' | 'kasten';
+    name?: string;
     hasCredentials?: boolean;
 }
 
@@ -168,7 +112,7 @@ export const configStore = {
                     host: url.hostname,
                     port: parseInt(url.port) || 9419,
                     protocol: url.protocol.replace(':', ''),
-                    username: process.env.VEEAM_USERNAME || 'Administrator',
+                    username: process.env.VEEAM_USERNAME || process.env.VBR_USERNAME || 'Administrator',
                     password: process.env.VEEAM_PASSWORD || process.env.VBR_PASSWORD,
                     platform: 'vbr',
                     hasCredentials: !!(process.env.VEEAM_PASSWORD || process.env.VBR_PASSWORD)
@@ -185,7 +129,7 @@ export const configStore = {
                     host: url.hostname,
                     port: parseInt(url.port) || 4443,
                     protocol: url.protocol.replace(':', ''),
-                    username: 'Environment Variable',
+                    username: process.env.VBM_USERNAME || '',
                     password: process.env.VBM_PASSWORD,
                     platform: 'vb365',
                     hasCredentials: !!process.env.VBM_PASSWORD
@@ -193,6 +137,15 @@ export const configStore = {
             } catch { return null; }
         }
 
+        if (id === 'env-one' || id === 'env-vro') {
+            const prefix = id === 'env-one' ? 'VEEAM_ONE' : 'VRO';
+            const value = process.env[`${prefix}_API_URL`];
+            if (!value) return null;
+            try {
+                const url = new URL(value);
+                return { id, host:url.hostname, port:Number(url.port || (url.protocol === 'https:' ? 443 : 80)), protocol:url.protocol.slice(0,-1), platform:id === 'env-one' ? 'one':'vro', username:process.env[`${prefix}_USERNAME`] || '', password:process.env[`${prefix}_PASSWORD`], hasCredentials:!!process.env[`${prefix}_PASSWORD`] };
+            } catch { return null; }
+        }
         if (!fs.existsSync(CONFIG_FILE)) return null;
         const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
         const stored: StoredSource[] = JSON.parse(data);
@@ -240,6 +193,7 @@ export const configStore = {
             username: source.username,
             protocol: source.protocol || 'https',
             platform: source.platform,
+            ...(source.name ? {name:source.name} : {}),
             encryptedPassword
         };
 

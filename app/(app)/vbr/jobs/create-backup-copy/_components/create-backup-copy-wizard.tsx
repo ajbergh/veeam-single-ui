@@ -1,5 +1,9 @@
 "use client"
 
+import { useI18n } from '@/components/providers/i18n-provider'
+import { enumLabel } from '@/lib/i18n/presentation'
+import { backupCopyMessage } from './presentation'
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -15,6 +19,7 @@ import { CheckCircle2, Loader2, XCircle, HardDrive } from "lucide-react"
 import { SourceJobSelector } from "./source-job-selector"
 
 export function CreateBackupCopyWizard() {
+    const { t, formatNumber } = useI18n()
     const router = useRouter()
     const [step, setStep] = useState(1)
 
@@ -164,7 +169,7 @@ export function CreateBackupCopyWizard() {
         } catch (error: unknown) {
             console.error("Job Creation Error:", error)
             setSubmitStatus('error')
-            const errorMessage = error instanceof Error ? error.message : "Failed to create Backup Copy Job"
+            const errorMessage = error instanceof Error ? error.message : null
             setErrorMessage(errorMessage)
         } finally {
             setIsSubmitting(false)
@@ -181,9 +186,9 @@ export function CreateBackupCopyWizard() {
                         <div key={s} className="flex items-center">
                             <div className={`flex flex-col items-center mx-2 sm:mx-4`}>
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm mb-1 ${step === s ? 'bg-primary text-primary-foreground' : step > s ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                    {s}
+                                    {formatNumber(s)}
                                 </div>
-                                <span className="text-xs font-medium text-muted-foreground hidden sm:block">{label}</span>
+                                <span className="text-xs font-medium text-muted-foreground hidden sm:block">{t(label)}</span>
                             </div>
                             {s < 4 && <div className={`w-8 sm:w-16 h-1 mt-[-20px] ${step > s ? 'bg-primary/30' : 'bg-muted'}`} />}
                         </div>
@@ -194,17 +199,17 @@ export function CreateBackupCopyWizard() {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        {step === 1 && "General Settings"}
-                        {step === 2 && "Source Backup Jobs"}
-                        {step === 3 && "Target Repository & Retention"}
-                        {step === 4 && "Review & Complete"}
+                        {step === 1 && t("General Settings")}
+                        {step === 2 && t("Source Backup Jobs")}
+                        {step === 3 && t("Target Repository & Retention")}
+                        {step === 4 && t("Review & Complete")}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {step === 1 && (
                         <div className="space-y-4 max-w-xl">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Job Name <span className="text-red-500">*</span></Label>
+                                <Label htmlFor="name">{t("Job Name")} <span className="text-red-500">*</span></Label>
                                 <Input
                                     id="name"
                                     value={name}
@@ -212,18 +217,18 @@ export function CreateBackupCopyWizard() {
                                         setName(e.target.value)
                                         if (nameError) setNameError(null)
                                     }}
-                                    placeholder="e.g. Backup Copy to Offsite"
+                                    placeholder={t("e.g. Backup Copy to Offsite")}
                                 />
-                                {nameError && <p className="text-sm text-red-500 mt-1">{nameError}</p>}
+                                {nameError && <p className="text-sm text-red-500 mt-1">{nameError && backupCopyMessage(t,nameError)}</p>}
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
+                                <Label htmlFor="description">{t("Description")}</Label>
                                 <Textarea
                                     id="description"
                                     rows={4}
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Optional description"
+                                    placeholder={t("Optional description")}
                                 />
                             </div>
                         </div>
@@ -239,25 +244,23 @@ export function CreateBackupCopyWizard() {
                     {step === 3 && (
                         <div className="space-y-8 max-w-2xl">
                             <div className="space-y-4">
-                                <h3 className="text-lg font-medium border-b pb-2">Target Repository</h3>
+                                <h3 className="text-lg font-medium border-b pb-2">{t("Target Repository")}</h3>
                                 <div className="space-y-2">
                                     <Label htmlFor="repository" className="flex items-center">
-                                        <HardDrive className="h-4 w-4 mr-2" />
-                                        Backup Repository <span className="text-red-500 ml-1">*</span>
+                                        <HardDrive className="h-4 w-4 mr-2" /> {t("Backup Repository")} <span className="text-red-500 ml-1">*</span>
                                     </Label>
                                     {loadingRepos ? (
                                         <div className="flex items-center h-10 px-3 border rounded-md bg-muted/50 text-muted-foreground">
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading repositories...
-                                        </div>
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t("Loading repositories...")} </div>
                                     ) : (
                                         <Select value={repositoryId} onValueChange={setRepositoryId}>
                                             <SelectTrigger id="repository">
-                                                <SelectValue placeholder="Select Backup Repository" />
+                                                <SelectValue placeholder={t("Select Backup Repository")} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {repositories.map(repo => (
                                                     <SelectItem key={repo.id} value={repo.id}>
-                                                        {repo.name} ({repo.type})
+                                                        {repo.name} ({enumLabel(t,repo.type)})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -267,9 +270,9 @@ export function CreateBackupCopyWizard() {
                             </div>
 
                             <div className="space-y-4">
-                                <h3 className="text-lg font-medium border-b pb-2">Retention Policy</h3>
+                                <h3 className="text-lg font-medium border-b pb-2">{t("Retention Policy")}</h3>
                                 <div className="space-y-2 max-w-xs">
-                                    <Label htmlFor="retentionDays">Restore points to keep (Days) <span className="text-red-500 ml-1">*</span></Label>
+                                    <Label htmlFor="retentionDays">{t("Restore points to keep (Days)")} <span className="text-red-500 ml-1">*</span></Label>
                                     <Input
                                         id="retentionDays"
                                         type="number"
@@ -284,8 +287,8 @@ export function CreateBackupCopyWizard() {
                                     <div className="flex flex-col space-y-4 p-4 border rounded-md bg-card">
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-0.5">
-                                                <Label className="text-base font-semibold">Keep certain full backups longer for archival purposes (GFS)</Label>
-                                                <p className="text-sm text-muted-foreground">Enable Grandfather-Father-Son retention policy</p>
+                                                <Label className="text-base font-semibold">{t("Keep certain full backups longer for archival purposes (GFS)")}</Label>
+                                                <p className="text-sm text-muted-foreground">{t("Enable Grandfather-Father-Son retention policy")}</p>
                                             </div>
                                             <Switch
                                                 checked={gfsEnabled}
@@ -296,7 +299,7 @@ export function CreateBackupCopyWizard() {
                                         {gfsEnabled && (
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="gfsWeekly">Weekly fulls</Label>
+                                                    <Label htmlFor="gfsWeekly">{t("Weekly fulls")}</Label>
                                                     <Input
                                                         id="gfsWeekly"
                                                         type="number"
@@ -307,7 +310,7 @@ export function CreateBackupCopyWizard() {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="gfsMonthly">Monthly fulls</Label>
+                                                    <Label htmlFor="gfsMonthly">{t("Monthly fulls")}</Label>
                                                     <Input
                                                         id="gfsMonthly"
                                                         type="number"
@@ -318,7 +321,7 @@ export function CreateBackupCopyWizard() {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="gfsYearly">Yearly fulls</Label>
+                                                    <Label htmlFor="gfsYearly">{t("Yearly fulls")}</Label>
                                                     <Input
                                                         id="gfsYearly"
                                                         type="number"
@@ -341,33 +344,33 @@ export function CreateBackupCopyWizard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-lg text-sm border">
                                 <div className="space-y-4">
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">Job Name</span>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("Job Name")}</span>
                                         <div className="font-medium text-base">{name}</div>
                                     </div>
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">Description</span>
-                                        <div>{description || <span className="text-muted-foreground italic">None</span>}</div>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("Description")}</span>
+                                        <div>{description || <span className="text-muted-foreground italic">{t("None")}</span>}</div>
                                     </div>
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">Source Objects</span>
-                                        <div>{selectedJobs.length} backup jobs selected</div>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("Source Objects")}</span>
+                                        <div>{t('{count} backup jobs selected', { count: formatNumber(selectedJobs.length) })}</div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">Target Repository</span>
-                                        <div>{repositories.find(r => r.id === repositoryId)?.name || repositoryId || <span className="text-red-500">Not selected</span>}</div>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("Target Repository")}</span>
+                                        <div>{repositories.find(r => r.id === repositoryId)?.name || repositoryId || <span className="text-red-500">{t("Not selected")}</span>}</div>
                                     </div>
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">Retention</span>
-                                        <div>{retentionDays} days</div>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("Retention")}</span>
+                                        <div>{t('{count} days', { count: formatNumber(retentionDays) })}</div>
                                     </div>
                                     <div>
-                                        <span className="font-semibold block text-muted-foreground mb-1">GFS Retention</span>
+                                        <span className="font-semibold block text-muted-foreground mb-1">{t("GFS Retention")}</span>
                                         <div>
                                             {gfsEnabled
-                                                ? `${gfsWeekly} weekly, ${gfsMonthly} monthly, ${gfsYearly} yearly`
-                                                : "Disabled"}
+                                                ? t('{weekly} weekly, {monthly} monthly, {yearly} yearly', { weekly: formatNumber(gfsWeekly), monthly: formatNumber(gfsMonthly), yearly: formatNumber(gfsYearly) })
+                                                : t("Disabled")}
                                         </div>
                                     </div>
                                 </div>
@@ -377,8 +380,8 @@ export function CreateBackupCopyWizard() {
                                 <div className="p-4 bg-red-50 text-red-600 rounded-md flex items-start border border-red-200">
                                     <XCircle className="h-5 w-5 mr-2 shrink-0 mt-0.5" />
                                     <div>
-                                        <p className="font-medium">Job Creation Failed</p>
-                                        <p className="text-sm mt-1">{errorMessage}</p>
+                                        <p className="font-medium">{t("Job Creation Failed")}</p>
+                                        <p className="text-sm mt-1">{errorMessage ? backupCopyMessage(t,errorMessage) : t('Failed to create Backup Copy Job')}</p>
                                     </div>
                                 </div>
                             )}
@@ -387,8 +390,8 @@ export function CreateBackupCopyWizard() {
                                 <div className="p-4 bg-green-50 text-green-600 rounded-md flex items-start border border-green-200">
                                     <CheckCircle2 className="h-5 w-5 mr-2 shrink-0 mt-0.5" />
                                     <div>
-                                        <p className="font-medium">Job Created Successfully</p>
-                                        <p className="text-sm mt-1">The backup copy job &apos;{name}&apos; has been created and enabled.</p>
+                                        <p className="font-medium">{t("Job Created Successfully")}</p>
+                                        <p className="text-sm mt-1">{t('The backup copy job “{name}” has been created and enabled.', { name })}</p>
                                     </div>
                                 </div>
                             )}
@@ -398,9 +401,9 @@ export function CreateBackupCopyWizard() {
 
                 <CardFooter className="flex justify-between border-t p-6">
                     {step === 1 ? (
-                        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
+                        <Button variant="outline" onClick={() => router.back()}>{t("Cancel")}</Button>
                     ) : (
-                        <Button variant="outline" onClick={handleBack} disabled={isSubmitting || submitStatus === 'success'}>Back</Button>
+                        <Button variant="outline" onClick={handleBack} disabled={isSubmitting || submitStatus === 'success'}>{t("Back")}</Button>
                     )}
 
                     {step < 4 ? (
@@ -413,9 +416,7 @@ export function CreateBackupCopyWizard() {
                                 (step === 3 && !repositoryId)
                             }
                         >
-                            {isValidatingName && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            Next
-                        </Button>
+                            {isValidatingName && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} {t("Next")} </Button>
                     ) : (
                         <Button
                             onClick={handleSubmit}
@@ -423,7 +424,7 @@ export function CreateBackupCopyWizard() {
                             className="bg-green-600 hover:bg-green-700"
                         >
                             {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {submitStatus === 'success' ? 'Created and Enabled' : 'Finish & Create'}
+                            {submitStatus === 'success' ? t("Created and Enabled") : t("Finish & Create")}
                         </Button>
                     )}
                 </CardFooter>

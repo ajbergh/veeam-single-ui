@@ -1,3 +1,5 @@
+
+import { useI18n } from '@/components/providers/i18n-provider'
 import { useState, useEffect } from "react"
 import { veeamApi } from "@/lib/api/veeam-client"
 import { VeeamInventoryItem } from "@/lib/types/veeam"
@@ -13,6 +15,8 @@ interface VirtualMachineSelectorProps {
 }
 
 export function VirtualMachineSelector({ platform, selectedVMs, onSelectionChange }: VirtualMachineSelectorProps) {
+  const { t: uiText } = useI18n()
+
     const [searchTerm, setSearchTerm] = useState("")
     const [inventory, setInventory] = useState<VeeamInventoryItem[]>([])
     const [loading, setLoading] = useState(false)
@@ -88,7 +92,7 @@ export function VirtualMachineSelector({ platform, selectedVMs, onSelectionChang
             <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search for virtual machines or containers (min 2 chars)..."
+                    placeholder={uiText("Search for virtual machines or containers (min 2 chars)...")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9"
