@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { app, BrowserWindow, dialog, utilityProcess, session, Menu } = require('electron');
+const launchStarted = performance.now();
 const path = require('node:path');
 const fs = require('node:fs');
-const net = require('node:net');
+const { availablePort } = require('./runtime.cjs');
 const crypto = require('node:crypto');
 const http = require('node:http');
 
@@ -13,30 +14,60 @@ if (smokeTest && smokeDirectory) app.setPath('userData', path.resolve(smokeDirec
 let window;
 let server;
 let quitting = false;
+const startup = {};
+let log;
+function markStartup(phase) {
+  startup[phase] = Math.round(performance.now() - launchStarted);
+  log?.write(`[Startup] ${phase}: ${startup[phase]}ms\n`);
+}
 app.setName('Open Backup UI');
 app.setAppUserModelId('org.openbackupui.desktop');
-
-function availablePort() {
-  return new Promise((resolve, reject) => {
-    const socket = net.createServer();
-    socket.once('error', reject);
-    socket.listen(0, '127.0.0.1', () => {
-      const port = socket.address().port;
-      socket.close(error => error ? reject(error) : resolve(port));
-    });
-  });
-}
+Menu.setApplicationMenu(null);
 
 async function launch() {
+  markStartup('electronReadyMs');
   const runtime = app.getPath('userData');
   fs.mkdirSync(runtime, { recursive: true });
+  log = fs.createWriteStream(path.join(runtime, 'desktop.log'), { flags: 'w' });
+  let origin;
+  const desktopSession = session.defaultSession;
+  desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  desktopSession.setPermissionCheckHandler(() => false);
+  // The console is served over loopback. Windows proxy auto-discovery can stall
+  // even its first local request. This changes this app session, not OS settings
+  // or the Node backend's API connections. Retain an opt-in for system proxies.
+  const networkReady = desktopSession.setProxy({ mode: process.env.OPEN_BACKUP_UI_USE_SYSTEM_PROXY === '1' ? 'system' : 'direct' })
+    .then(() => markStartup('proxyConfiguredMs'));
+  networkReady.catch(() => {});
+  window = new BrowserWindow({ width: 1440, height: 960, minWidth: 900, minHeight: 600,
+    title: 'Open Backup UI', show: true, backgroundColor: '#090b0e', autoHideMenuBar: true,
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false },
+  });
+  markStartup('windowCreatedMs');
+  markStartup('windowVisibleMs');
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', (event, url) => {
+    if (!origin || new URL(url).origin !== origin) event.preventDefault();
+  });
+  window.webContents.on('will-attach-webview', event => event.preventDefault());
+  window.webContents.on('render-process-gone', (_event, details) => log.write(`[Desktop] Renderer exited: ${details.reason}\n`));
+  // Warming Chromium and starting the backend happen concurrently.
+  const startupPage = window.loadFile(path.join(__dirname, 'startup.html')).then(() => markStartup('startupPageLoadedMs'));
+  // Attach a handler immediately if the window is closed during startup.
+  startupPage.catch(() => {});
   const keyFile = path.join(runtime, 'encryption-key');
   if (!fs.existsSync(keyFile)) fs.writeFileSync(keyFile, crypto.randomBytes(32).toString('hex'), { flag: 'wx', mode: 0o600 });
-  const port = await availablePort();
-  const origin = `http://127.0.0.1:${port}`;
+  let preferredPort;
+  const portFile = path.join(runtime, 'desktop-port.json');
+  try { preferredPort = JSON.parse(fs.readFileSync(portFile, 'utf8')).port; } catch { /* First run or invalid state: choose a free port. */ }
+  const port = await availablePort(preferredPort);
+  if (quitting || window.isDestroyed()) return;
+  origin = `http://127.0.0.1:${port}`;
+  // A stable local origin lets Chromium reuse cached assets on later launches.
+  fs.writeFileSync(portFile, JSON.stringify({ port }));
   const token = crypto.randomBytes(32).toString('hex');
-  const root = app.isPackaged ? path.join(process.resourcesPath, 'server') : path.resolve(__dirname, '../server');
-  const log = fs.createWriteStream(path.join(runtime, 'desktop.log'), { flags: 'w' });
+  const root = app.isPackaged ? path.join(process.resourcesPath, 'server.asar') : path.resolve(__dirname, '../server.asar');
+  markStartup('backendForkedMs');
   server = utilityProcess.fork(path.join(__dirname, 'server.cjs'), [], {
     cwd: runtime, stdio: 'pipe', serviceName: 'Open Backup UI backend',
     env: { ...process.env, NODE_ENV: 'production', HOSTNAME: '127.0.0.1', PORT: String(port),
@@ -58,32 +89,29 @@ async function launch() {
     const timeout = setTimeout(() => reject(new Error('The local backend did not start within 90 seconds.')), 90000);
     server.once('exit', () => { clearTimeout(timeout); reject(new Error('The local backend could not start.')); });
     server.on('message', message => {
-      if (message.type === 'ready') { clearTimeout(timeout); resolve(); }
+      if (message.type === 'ready') { startup.backend = message.timings; clearTimeout(timeout); resolve(); }
     });
   });
-  log.write('[Desktop] Backend ready; opening application window.\n');
+  markStartup('backendReadyMs');
+  if (quitting || window.isDestroyed()) return;
+  log.write('[Desktop] Backend ready; loading application.\n');
+  await Promise.all([startupPage, networkReady]);
+  if (quitting || window.isDestroyed()) return;
 
-  const desktopSession = session.defaultSession;
-  desktopSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-  desktopSession.setPermissionCheckHandler(() => false);
   desktopSession.webRequest.onBeforeSendHeaders((details, callback) => {
     if (new URL(details.url).origin === origin) details.requestHeaders['x-desktop-token'] = token;
     callback({ requestHeaders: details.requestHeaders });
   });
-  window = new BrowserWindow({ width: 1440, height: 960, minWidth: 900, minHeight: 600,
-    title: 'Open Backup UI', show: false, autoHideMenuBar: true,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false },
+  desktopSession.webRequest.onHeadersReceived((details, callback) => {
+    if (details.resourceType === 'mainFrame' && new URL(details.url).origin === origin) markStartup('responseHeadersMs');
+    callback({});
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', (event, url) => {
-    if (new URL(url).origin !== origin) event.preventDefault();
-  });
-  window.webContents.on('will-attach-webview', event => event.preventDefault());
-  Menu.setApplicationMenu(null);
-  window.webContents.on('render-process-gone', (_event, details) => log.write(`[Desktop] Renderer exited: ${details.reason}\n`));
+  window.webContents.once('dom-ready', () => markStartup('domReadyMs'));
+  markStartup('navigationStartedMs');
   await window.loadURL(`${origin}/connect`);
+  markStartup('pageLoadedMs');
   log.write('[Desktop] Application page loaded.\n');
-  window.show();
+  fs.writeFileSync(path.join(runtime, 'startup-timings.json'), JSON.stringify(startup, null, 2));
   // CI smoke testing exercises the actual packaged backend and renderer.
   if (smokeTest) {
     const page = await window.webContents.executeJavaScript(`document.fonts.ready.then(() => ({text:document.body.innerText, scripts:document.querySelectorAll('script[src*="/_next/static/"]').length}))`);
@@ -108,7 +136,7 @@ async function launch() {
     });
     if (denied !== 403) throw new Error(`Unauthenticated local request returned ${denied}, expected 403.`);
     fs.writeFileSync(path.join(runtime, 'smoke-screenshot.png'), (await window.webContents.capturePage()).toPNG());
-    fs.writeFileSync(path.join(runtime, 'smoke-test.json'), JSON.stringify({ ok: true, port, apiStatus: result.status, unauthorizedStatus: denied }));
+    fs.writeFileSync(path.join(runtime, 'smoke-test.json'), JSON.stringify({ ok: true, port, apiStatus: result.status, unauthorizedStatus: denied, startup }));
     app.quit();
   }
 }
@@ -117,6 +145,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.focus(); } });
   app.whenReady().then(launch).catch(error => {
+    if (quitting) return;
     quitting = true;
     if (server) server.kill();
     if (smokeTest) {

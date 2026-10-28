@@ -8,15 +8,23 @@ const assert = require('node:assert/strict');
 async function main() {
   const argument = process.argv[2] === 'portable'
     ? `artifacts/windows/Open-Backup-UI-${require('../package.json').version}-Portable-x64.exe`
-    : process.argv[2];
+    : process.argv[2] === 'unpacked' ? undefined : process.argv[2];
   const executable = path.resolve(argument || 'artifacts/windows/win-unpacked/Open Backup UI.exe');
   fs.mkdirSync(path.resolve('tmp'), { recursive: true });
-  const directory = fs.mkdtempSync(path.resolve('tmp', 'desktop-smoke-'));
+  const tmpRoot = path.resolve('tmp');
+  const directory = process.argv[3] ? path.resolve(process.argv[3]) : fs.mkdtempSync(path.join(tmpRoot, 'desktop-smoke-'));
+  const relative = path.relative(tmpRoot, directory);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Smoke profiles must be in a subdirectory of the workspace tmp folder.');
+  fs.mkdirSync(directory, { recursive: true });
+  for (const filename of ['smoke-test.json', 'smoke-error.txt']) {
+    try { fs.unlinkSync(path.join(directory, filename)); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
   const cleanEnvironment = { ...process.env };
   delete cleanEnvironment.ELECTRON_RUN_AS_NODE;
   // Exercise a machine without development runtimes on PATH.
   const pathKey = Object.keys(cleanEnvironment).find(key => key.toLowerCase() === 'path') || 'Path';
   cleanEnvironment[pathKey] = `${process.env.SystemRoot}\\System32;${process.env.SystemRoot}`;
+  const launched = Date.now();
   const child = spawn(executable, ['--desktop-smoke-test', `--desktop-smoke-dir=${directory}`], {
     windowsHide: true, stdio: 'inherit', env: cleanEnvironment,
   });
@@ -32,9 +40,14 @@ async function main() {
   });
   assert.equal(code, 0, `Desktop failed. See ${directory}`);
   const result = JSON.parse(fs.readFileSync(path.join(directory, 'smoke-test.json'), 'utf8'));
+  if (result.startup) console.log(`Startup timings: ${JSON.stringify(result.startup)}; complete smoke test: ${Date.now() - launched}ms`);
   assert.equal(result.ok, true);
   assert.equal(result.apiStatus, 200);
   assert.equal(result.unauthorizedStatus, 403);
+  if (result.startup) {
+    assert.ok(result.startup.windowVisibleMs < result.startup.backendReadyMs, 'Show the window while the backend starts');
+    assert.ok(result.startup.windowVisibleMs < result.startup.pageLoadedMs, 'Do not hide the window until all page resources load');
+  }
   assert.ok(fs.existsSync(path.join(directory, 'encryption-key')));
   // The API initializes its credential store under the user's writable directory.
   assert.ok(fs.existsSync(path.join(directory, 'data')));

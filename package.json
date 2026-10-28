@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "desktop:stage": "node scripts/prepare-windows.cjs",
+    "desktop:build": "cross-env OPEN_BACKUP_UI_DESKTOP_BUILD=1 next build --turbopack",
     "desktop:start": "npm run desktop:stage && install-electron && electron build/desktop/app",
-    "desktop:pack": "npm run build && npm run desktop:stage && electron-builder --config electron-builder.cjs --win --x64 --dir",
-    "desktop:dist": "npm run build && npm run desktop:stage && electron-builder --config electron-builder.cjs --win --x64",
+    "desktop:pack": "npm run desktop:build && npm run desktop:stage && electron-builder --config electron-builder.cjs --win --x64 --dir",
+    "desktop:dist": "npm run desktop:build && npm run desktop:stage && electron-builder --config electron-builder.cjs --win --x64",
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next start",
@@ -96,6 +97,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
