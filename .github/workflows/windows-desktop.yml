@@ -1,0 +1,47 @@
+name: Windows desktop
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CAPACITY_COLLECTOR_ENABLED: 'false'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run desktop:dist
+      - name: Test packaged application
+        run: node scripts/smoke-windows.cjs
+      - name: Test single-file portable application
+        run: node scripts/smoke-windows.cjs portable
+      - name: Test installer and uninstaller
+        run: node scripts/smoke-windows-installer.cjs
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/windows/*.exe | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-backup-ui-windows-x64
+          path: |
+            artifacts/windows/*.exe
+            artifacts/windows/*.sha256
+          if-no-files-found: error

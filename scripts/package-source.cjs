@@ -6,11 +6,11 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const zlib = require('node:zlib')
 
-const SOURCE_DIRECTORIES = ['.github', 'app', 'components', 'docs', 'hooks', 'lib', 'public', 'scripts', 'tests']
+const SOURCE_DIRECTORIES = ['.github', 'app', 'components', 'desktop', 'docs', 'hooks', 'lib', 'public', 'scripts', 'tests']
 const ROOT_FILES = [
   '.dockerignore', '.env.example', '.gitattributes', '.gitignore', 'CHANGELOG.md',
   'components.json', 'CONTAINER.md', 'CONTRIBUTING.md', 'DCO.md', 'Dockerfile',
-  'eslint.config.mjs', 'instrumentation.ts', 'LICENSE', 'next.config.js',
+  'electron-builder.cjs', 'eslint.config.mjs', 'instrumentation.ts', 'LICENSE', 'middleware.ts', 'next.config.js',
   'package-lock.json', 'package.json', 'postcss.config.mjs', 'README.md',
   'STANDALONE.md', 'TROUBLESHOOTING.md', 'tsconfig.json',
 ]

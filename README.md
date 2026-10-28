@@ -96,6 +96,10 @@ The **Connect** page introduces features through nine real application screensho
 
 ## Get started
 
+For the Windows desktop edition, including a full offline `.exe` installer and
+a single-file portable `.exe`, see [Windows desktop](docs/windows-desktop.md).
+It bundles the application and runtime; end users do not need Node.js or Docker.
+
 ### Requirements
 
 - Node.js 20 or later and npm. The local v1.0 build was checked with Node.js 22.

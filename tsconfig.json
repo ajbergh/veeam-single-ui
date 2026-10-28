@@ -36,6 +36,9 @@
   ],
   "exclude": [
     "node_modules",
+    "build",
+    "artifacts",
+    "tmp",
     "template-insights-main",
     "template-overview-main"
   ]

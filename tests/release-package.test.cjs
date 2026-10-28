@@ -22,8 +22,8 @@ function fixture(t) {
 
 test('source ZIP includes app, translations, release screenshots and public assets while excluding local state', t => {
   const { root, write } = fixture(t)
-  const included = ['.env.example', '.github/workflows/release.yml', 'app/page.tsx', 'lib/i18n/messages/es.json', 'docs/releases/images/v1.0.0/theme.webp', 'public/images/connect/localized.webp', 'scripts/https-server.cjs']
-  const excluded = ['.env', '.env.local', 'data/connections.json', 'node_modules/dep/index.js', '.next/cache/item', '.codex-attachments/private.png', '.tmp-draft.json', 'tmp/debug.txt', 'artifacts/old.zip', 'docs/.env', 'public/private.key', 'scripts/build.log']
+  const included = ['.env.example', '.github/workflows/release.yml', 'app/page.tsx', 'lib/i18n/messages/es.json', 'docs/releases/images/v1.0.0/theme.webp', 'public/images/connect/localized.webp', 'scripts/https-server.cjs', 'desktop/main.cjs', 'desktop/server.cjs', 'electron-builder.cjs', 'middleware.ts']
+  const excluded = ['.env', '.env.local', 'data/connections.json', 'node_modules/dep/index.js', '.next/cache/item', '.codex-attachments/private.png', '.tmp-draft.json', 'tmp/debug.txt', 'artifacts/old.zip', 'build/desktop/server/data/sources.json', 'docs/.env', 'public/private.key', 'scripts/build.log']
   for (const file of [...included, ...excluded]) write(file, Buffer.from([0, 255, 10, 44]))
   const files = collectSourceFiles(root)
   for (const file of included) assert.ok(files.includes(file), `${file} is included`)
