@@ -55,6 +55,21 @@ podman run -d \
 
 ## Environment Variables
 
+### Optional built-in HTTPS
+
+The default container command remains HTTP for existing reverse proxies. To use the managed HTTPS listener instead, persist `/app/data`, supply a random administrator token through your secret-management mechanism, and publish only the HTTPS port:
+
+```bash
+docker run -d --name open-backup-ui \
+  -p 3443:3443 \
+  -v open-backup-data:/app/data \
+  -e HTTPS_HOSTNAMES=backup.example.com \
+  -e HTTPS_ADMIN_TOKEN \
+  open-backup-ui:latest node scripts/https-server.cjs
+```
+
+`HTTPS_ADMIN_TOKEN` must already be set in the calling environment and contain at least 32 characters to enable certificate uploads. The initial self-signed certificate is generated at first startup, never during the image build. Install your own PEM certificate, private key, and optional intermediate chain under **Administration → Settings → HTTPS & certificates**. The Next.js backend stays on loopback. See [HTTPS setup](docs/https.md) for trusted certificates and recovery.
+
 ### Required Variables
 
 #### Veeam Backup & Replication (VBR)

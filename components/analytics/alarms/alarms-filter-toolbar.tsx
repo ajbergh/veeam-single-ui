@@ -1,4 +1,6 @@
 "use client"
+import { useI18n } from '@/components/providers/i18n-provider'
+
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -31,6 +33,8 @@ const statuses = [
 ]
 
 export function AlarmsFilterToolbar() {
+  const { t: uiText } = useI18n()
+
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -101,7 +105,7 @@ export function AlarmsFilterToolbar() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
-                        placeholder="Search by alarm or object name..."
+                        placeholder={uiText("Search by alarm or object name...")}
                         className="pl-8"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}

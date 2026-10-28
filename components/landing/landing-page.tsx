@@ -1,7 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useI18n } from "@/components/providers/i18n-provider"
+
+import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
+import { FeatureCarousel } from "@/components/landing/feature-carousel"
 import {
     Server,
     Cloud,
@@ -17,7 +20,6 @@ import {
     Shield,
     Eye,
     EyeOff,
-    LayoutGrid,
     Sun,
     Moon,
     Activity,
@@ -31,8 +33,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { isTelemetryDisabled, enableTelemetry, disableTelemetry } from "@/lib/telemetry"
-import posthog from "posthog-js"
+import { isTelemetryDisabled, enableTelemetry, disableTelemetry, STORAGE_KEY, TELEMETRY_PREFERENCE_EVENT } from "@/lib/telemetry"
+import { toast } from "sonner"
+import { applicationRequest, ApplicationRequestError } from '@/lib/api/application-request'
 
 const platformIcons: Record<PlatformType, React.ReactNode> = {
     vbr: <Server className="h-6 w-6" />,
@@ -43,258 +46,12 @@ const platformIcons: Record<PlatformType, React.ReactNode> = {
     kasten: <Database className="h-6 w-6" />
 }
 
-const featureSlides = [
-    {
-        title: "Unified Visibility",
-        description: "Gain comprehensive insights across your entire Veeam data protection ecosystem from a single, intuitive dashboard.",
-        icon: <LayoutGrid className="h-5 w-5" />,
-        imagePlaceholder: "/images/slide-1.png",
-        gradient: "from-[#0a1015] via-[#0d1820] to-[#002a11]" // Deep Green
-    },
-    {
-        title: "Centralized Management",
-        description: "Connect and manage multiple Veeam Backup & Replication, Veeam ONE, and VB365 instances seamlessly.",
-        icon: <Server className="h-5 w-5" />,
-        imagePlaceholder: "/images/slide-2.png",
-        gradient: "from-[#0a1015] via-[#0d1820] to-[#001a33]" // Deep Blue
-    },
-    {
-        title: "Advanced Analytics",
-        description: "Leverage powerful analytics and reporting tools to optimize your data protection strategy and ensure compliance.",
-        icon: <BarChart2 className="h-5 w-5" />,
-        imagePlaceholder: "/images/slide-3.png",
-        gradient: "from-[#0a1015] via-[#1a0b1a] to-[#2a0d00]" // Deep Amber/Purple
-    }
-]
-
 interface AuthState {
     sourceId: string
     username: string
     password: string
     loading: boolean
     error: string | null
-}
-
-// Canvas-based particle system
-function ParticleCanvas() {
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        let animationId: number
-        let particles: Array<{
-            x: number
-            y: number
-            vx: number
-            vy: number
-            size: number
-            opacity: number
-            hue: number
-        }> = []
-
-        const resize = () => {
-            canvas.width = canvas.offsetWidth * window.devicePixelRatio
-            canvas.height = canvas.offsetHeight * window.devicePixelRatio
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-        }
-
-        const createParticles = () => {
-            const count = 50
-            particles = []
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: Math.random() * canvas.offsetWidth,
-                    y: Math.random() * canvas.offsetHeight,
-                    vx: (Math.random() - 0.5) * 0.4,
-                    vy: (Math.random() - 0.5) * 0.4,
-                    size: Math.random() * 2 + 1,
-                    opacity: Math.random() * 0.4 + 0.1,
-                    hue: Math.random() * 40 + 160 // Teal-cyan range
-                })
-            }
-        }
-
-        const drawConnections = () => {
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x
-                    const dy = particles[i].y - particles[j].y
-                    const dist = Math.sqrt(dx * dx + dy * dy)
-
-                    if (dist < 100) {
-                        const opacity = (1 - dist / 100) * 0.1
-                        ctx.beginPath()
-                        ctx.strokeStyle = `rgba(0, 179, 54, ${opacity})`
-                        ctx.lineWidth = 0.5
-                        ctx.moveTo(particles[i].x, particles[i].y)
-                        ctx.lineTo(particles[j].x, particles[j].y)
-                        ctx.stroke()
-                    }
-                }
-            }
-        }
-
-        const animate = () => {
-            ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
-
-            particles.forEach(p => {
-                p.x += p.vx
-                p.y += p.vy
-
-                if (p.x < 0) p.x = canvas.offsetWidth
-                if (p.x > canvas.offsetWidth) p.x = 0
-                if (p.y < 0) p.y = canvas.offsetHeight
-                if (p.y > canvas.offsetHeight) p.y = 0
-
-                ctx.beginPath()
-                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3)
-                gradient.addColorStop(0, `hsla(${p.hue}, 70%, 50%, ${p.opacity})`)
-                gradient.addColorStop(1, `hsla(${p.hue}, 70%, 50%, 0)`)
-                ctx.fillStyle = gradient
-                ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2)
-                ctx.fill()
-
-                ctx.beginPath()
-                ctx.fillStyle = `hsla(${p.hue}, 70%, 60%, ${p.opacity * 1.5})`
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-                ctx.fill()
-            })
-
-            drawConnections()
-            animationId = requestAnimationFrame(animate)
-        }
-
-        resize()
-        createParticles()
-        animate()
-
-        window.addEventListener('resize', () => {
-            resize()
-            createParticles()
-        })
-
-        return () => {
-            cancelAnimationFrame(animationId)
-        }
-    }, [])
-
-    return (
-        <canvas
-            ref={canvasRef}
-            className="absolute inset-0 w-full h-full"
-            style={{ opacity: 0.5 }}
-        />
-    )
-}
-
-// Full-page feature carousel with tabbed navigation
-function FeatureCarousel() {
-    const [currentSlide, setCurrentSlide] = useState(0)
-    const [isAutoPlaying, setIsAutoPlaying] = useState(true)
-    const SLIDE_DURATION = 8000
-
-    const goToSlide = useCallback((index: number) => {
-        setCurrentSlide(index)
-        setIsAutoPlaying(false) // Stop auto-play on interaction
-    }, [])
-
-    useEffect(() => {
-        if (!isAutoPlaying) return
-
-        const interval = setInterval(() => {
-            setCurrentSlide(curr => (curr + 1) % featureSlides.length)
-        }, SLIDE_DURATION)
-
-        return () => clearInterval(interval)
-    }, [isAutoPlaying])
-
-    const slide = featureSlides[currentSlide]
-
-    return (
-        <div className="relative h-full flex flex-col pt-20 pb-12 overflow-hidden px-8 transition-colors duration-1000">
-            {/* Dynamic Background Layer */}
-            <div
-                className={cn(
-                    "absolute inset-0 transition-opacity duration-1000 bg-gradient-to-br opacity-100",
-                    slide.gradient
-                )}
-            />
-
-            {/* Content Container */}
-            <div className="relative z-10 flex-1 flex flex-col">
-
-                {/* Text Area - Top */}
-                <div className="text-center mb-12 max-w-2xl mx-auto">
-                    <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6 tracking-tight leading-tight">
-                        {slide.title}
-                    </h2>
-                    <p className="text-lg text-slate-400 leading-relaxed">
-                        {slide.description}
-                    </p>
-                </div>
-
-                {/* Main Visual - Larger Scale (Middle) */}
-                <div className="flex-1 relative flex items-center justify-center mb-12">
-                    <div className="relative w-full max-w-2xl aspect-video bg-[#0b1219] rounded-xl border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.6)] p-6 backdrop-blur-sm transition-all duration-700 ease-in-out transform hover:scale-[1.02] flex flex-col overflow-hidden">
-
-                        {/* Mock UI Header */}
-                        <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
-                            <div className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 opacity-50" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 opacity-50" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 opacity-50" />
-                            </div>
-                            <div className="h-4 w-32 bg-white/5 rounded ml-4" />
-                        </div>
-
-                        {/* Dynamic Visualization Content based on slide */}
-                        <div className="w-full h-full p-0 flex items-center justify-center overflow-hidden bg-black/20">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={slide.imagePlaceholder}
-                                alt={slide.title}
-                                className="w-full h-full object-cover opacity-90 transition-opacity hover:opacity-100"
-                            />
-                        </div>
-
-                        {/* Overlay Badge */}
-                        <div className="absolute bottom-6 right-6">
-                            <Badge variant="outline" className="bg-black/50 backdrop-blur-md border-white/10 text-white/70">
-                                {slide.title} Preview
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tab Navigation (Pill Buttons) - Bottom */}
-                <div className="flex justify-center items-center gap-3">
-                    {featureSlides.map((s, idx) => {
-                        const isActive = idx === currentSlide
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => goToSlide(idx)}
-                                className={cn(
-                                    "px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2.5 border",
-                                    isActive
-                                        ? "bg-white/90 text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105"
-                                        : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white backdrop-blur-md"
-                                )}
-                            >
-                                <span className={cn("transition-colors", isActive ? "text-black" : "text-white/70")}>{s.icon}</span>
-                                <span>{s.title}</span>
-                            </button>
-                        )
-                    })}
-                </div>
-            </div>
-        </div>
-    )
 }
 
 // Default ports for each platform
@@ -308,7 +65,9 @@ const defaultPorts: Record<PlatformType, string> = {
 }
 
 export function LandingPage() {
-    const { dataSources, addDataSource, removeDataSource, updateDataSource, setAuthenticated } = useDataSources()
+    const { t } = useI18n()
+    const { dataSources, addDataSource, removeDataSource, updateDataSource, reloadSources, isLoading, loadError } = useDataSources()
+    const [connectionError, setConnectionError] = useState<string | null>(null)
     const { theme, setTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
     const [telemetryEnabled, setTelemetryEnabled] = useState(true)
@@ -316,7 +75,15 @@ export function LandingPage() {
     // After mounting, we have access to the theme
     useEffect(() => {
         setMounted(true)
-        setTelemetryEnabled(!isTelemetryDisabled())
+        const sync = () => setTelemetryEnabled(!isTelemetryDisabled())
+        const onStorage = (event: StorageEvent) => { if (event.key === STORAGE_KEY || event.key === null) sync() }
+        sync()
+        window.addEventListener(TELEMETRY_PREFERENCE_EVENT, sync)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener(TELEMETRY_PREFERENCE_EVENT, sync)
+            window.removeEventListener('storage', onStorage)
+        }
     }, [])
 
     // UI State
@@ -430,22 +197,19 @@ export function LandingPage() {
         setAuthState(prev => ({ ...prev, loading: true, error: null }))
 
         try {
-            const response = await fetch(`/api/auth/${source.type}`, {
+            const path = source.managed ? `/api/administration/data-sources/${encodeURIComponent(source.id)}/connect` : `/api/auth/${source.type}`
+            await applicationRequest(path, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    url: source.url,
+                    ...(!source.managed ? { url: source.url } : {}),
                     username: authState.username,
                     password: authState.password
                 })
             })
 
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || "Authentication failed")
-            }
-
-            setAuthenticated(authState.sourceId, true)
+            await reloadSources()
+            setAuthState(prev => ({ ...prev, username: '', password: '', loading: false }))
             setAuthDialogOpen(false)
         } catch (error) {
             setAuthState(prev => ({
@@ -460,22 +224,22 @@ export function LandingPage() {
 
     const handleAutoConnect = async (source: DataSource) => {
         setConnecting(prev => new Set(prev).add(source.id))
+        setConnectionError(null)
         try {
-            const response = await fetch(`/api/auth/${source.type}`, {
+            await applicationRequest(`/api/administration/data-sources/${encodeURIComponent(source.id)}/connect`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sourceId: source.id })
+                body: JSON.stringify({})
             })
 
-            if (response.ok) {
-                setAuthenticated(source.id, true)
-                return true
-            } else {
+            await reloadSources()
+            return true
+        } catch (error) {
+            if (error instanceof ApplicationRequestError && error.kind === 'response' && error.status === 401 && source.managed !== 'environment') {
                 openAuthDialog(source.id)
-                return false
+            } else {
+                setConnectionError(error instanceof Error ? error.message : 'The source could not be connected. Please retry.')
             }
-        } catch {
-            openAuthDialog(source.id)
             return false
         } finally {
             setConnecting(prev => {
@@ -506,20 +270,10 @@ export function LandingPage() {
 
     return (
         <div className="min-h-screen flex" style={{ fontFamily: 'var(--font-manrope), sans-serif' }}>
-            {/* Left Carousel Section (Moved from Right to Left) */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#0a1015] via-[#0d1820] to-[#0a1a1a]">
-                <ParticleCanvas />
-
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#0a1015] to-transparent" />
-                    <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-[#0a1015] to-transparent" />
-                </div>
-
-                <div className="relative z-10 w-full h-full">
-                    <FeatureCarousel />
-                </div>
+            {/* Feature showcase */}
+            <div className="hidden min-w-0 lg:flex lg:w-1/2 relative bg-[#0a151b]">
+                <FeatureCarousel />
             </div>
-
             {/* Right Form Section (Moved from Left to Right) */}
             <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12 bg-background relative z-10 overflow-hidden">
 
@@ -528,36 +282,32 @@ export function LandingPage() {
                     {mounted && (
                         <>
                             {/* Telemetry Toggle */}
-                            <div className="border rounded-lg p-1 flex items-center gap-1 bg-background/50 backdrop-blur-sm" title="Telemetry Settings">
+                            <div className="border rounded-lg p-1 flex items-center gap-1 bg-background/50 backdrop-blur-sm" title={t("Telemetry Settings")}>
                                 <button
                                     onClick={() => {
-                                        enableTelemetry()
-                                        setTelemetryEnabled(true)
-                                        if (posthog) posthog.opt_in_capturing()
+                                        if (!enableTelemetry()) toast.error('The telemetry preference could not be saved in this browser.')
                                     }}
-                                    title="Telemetry Enabled"
+                                    title={t("Telemetry Enabled")}
                                     className={cn(
                                         "p-1.5 rounded-md transition-all",
                                         telemetryEnabled ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     <Activity className="h-4 w-4" />
-                                    <span className="sr-only">Enable Telemetry</span>
+                                    <span className="sr-only">{t("Enable Telemetry")}</span>
                                 </button>
                                 <button
                                     onClick={() => {
-                                        disableTelemetry()
-                                        setTelemetryEnabled(false)
-                                        if (posthog) posthog.opt_out_capturing()
+                                        if (!disableTelemetry()) toast.error('The telemetry preference could not be saved in this browser.')
                                     }}
-                                    title="Telemetry Disabled"
+                                    title={t("Telemetry Disabled")}
                                     className={cn(
                                         "p-1.5 rounded-md transition-all",
                                         !telemetryEnabled ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     <CloudOff className="h-4 w-4" />
-                                    <span className="sr-only">Disable Telemetry</span>
+                                    <span className="sr-only">{t("Disable Telemetry")}</span>
                                 </button>
                             </div>
 
@@ -571,7 +321,7 @@ export function LandingPage() {
                                     )}
                                 >
                                     <Sun className="h-4 w-4" />
-                                    <span className="sr-only">Light Mode</span>
+                                    <span className="sr-only">{t("Light Mode")}</span>
                                 </button>
                                 <button
                                     onClick={() => setTheme("dark")}
@@ -581,7 +331,7 @@ export function LandingPage() {
                                     )}
                                 >
                                     <Moon className="h-4 w-4" />
-                                    <span className="sr-only">Dark Mode</span>
+                                    <span className="sr-only">{t("Dark Mode")}</span>
                                 </button>
                             </div>
                         </>
@@ -605,12 +355,12 @@ export function LandingPage() {
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <h2 className="text-2xl font-bold">
-                                    {dataSources.length === 0 ? "Get Started" : "Data Sources"}
+                                    {t(dataSources.length === 0 && !isLoading && !loadError ? "Get Started" : "Data Sources")}
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    {dataSources.length === 0
-                                        ? "Add your first data source to begin"
-                                        : "Manage your connected platforms"
+                                    {dataSources.length === 0 && !isLoading && !loadError
+                                        ? t("Add your first data source to begin")
+                                        : t("Connections run from the application server, including when you use your phone.")
                                     }
                                 </p>
                             </div>
@@ -621,12 +371,22 @@ export function LandingPage() {
                                     onClick={() => setViewMode("add")}
                                     className="shrink-0"
                                 >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add
-                                </Button>
+                                    <Plus className="h-4 w-4 mr-1" />{t("Add")}</Button>
                             )}
                         </div>
 
+                        {(loadError || connectionError) && <div role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                            <p>{loadError || connectionError}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <Button variant="outline" size="sm" disabled={isLoading} onClick={() => { setConnectionError(null); void reloadSources() }}>{t("Retry")}</Button>
+                                <Button variant="outline" size="sm" onClick={() => {
+                                    const url = new URL(window.location.href)
+                                    if (url.hostname.endsWith('.trycloudflare.com')) url.protocol = 'https:'
+                                    window.location.assign(url.href)
+                                }}>{t("Reopen secure connection")}</Button>
+                            </div>
+                        </div>}
+                        {isLoading && <p role="status" className="mb-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>{t("Loading saved connections…")}</p>}
                         {/* Scrollable Sources Grid */}
                         <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
                             <div className="space-y-3">
@@ -655,12 +415,10 @@ export function LandingPage() {
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium text-sm truncate">{source.name}</span>
                                                     {source.isAuthenticated ? (
-                                                        <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                                                            Connected
-                                                        </Badge>
+                                                        <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">{t("Connected")}</Badge>
                                                     ) : (
                                                         <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20">
-                                                            {source.hasCredentials ? "Ready" : "Setup"}
+                                                            {t(source.hasCredentials ? "Ready" : "Setup")}
                                                         </Badge>
                                                     )}
                                                 </div>
@@ -677,12 +435,12 @@ export function LandingPage() {
                                                         size="sm"
                                                         className="h-7 px-2 text-xs"
                                                         onClick={() => source.hasCredentials ? handleAutoConnect(source) : openAuthDialog(source.id)}
-                                                        disabled={connecting.has(source.id)}
+                                                        disabled={connecting.has(source.id) || isLoading || !!loadError}
                                                     >
                                                         {connecting.has(source.id) ? (
                                                             <Loader2 className="h-3 w-3 animate-spin" />
                                                         ) : (
-                                                            source.hasCredentials ? "Connect" : "Setup"
+                                                            t(source.hasCredentials ? "Connect" : "Setup")
                                                         )}
                                                     </Button>
                                                 )}
@@ -710,7 +468,7 @@ export function LandingPage() {
                                 ))}
 
                                 {/* Empty State - Add Source */}
-                                {dataSources.length === 0 && (
+                                {dataSources.length === 0 && !isLoading && !loadError && (
                                     <button
                                         onClick={() => setViewMode("add")}
                                         className={cn(
@@ -721,8 +479,8 @@ export function LandingPage() {
                                         )}
                                     >
                                         <Plus className="h-8 w-8" />
-                                        <span className="font-medium">Add Your First Data Source</span>
-                                        <span className="text-xs">Connect VBR, VB365, Veeam ONE, or more</span>
+                                        <span className="font-medium">{t("Add Your First Data Source")}</span>
+                                        <span className="text-xs">{t("Connect VBR, VB365, Veeam ONE, or more")}</span>
                                     </button>
                                 )}
                             </div>
@@ -735,16 +493,13 @@ export function LandingPage() {
                                     size="default"
                                     className="w-full bg-[#00b336] hover:bg-[#00a030] text-white"
                                     onClick={allAuthenticated ? () => window.location.href = "/dashboard" : handleConnectAll}
+                                    disabled={isLoading || !!loadError || connecting.size > 0}
                                 >
                                     {allAuthenticated ? (
-                                        <>
-                                            Continue to Dashboard
-                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                        <>{t("Continue to Dashboard")}<ArrowRight className="ml-2 h-4 w-4" />
                                         </>
                                     ) : (
-                                        <>
-                                            Connect All Sources
-                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                        <>{t("Connect All Sources")}<ArrowRight className="ml-2 h-4 w-4" />
                                         </>
                                     )}
                                 </Button>
@@ -763,18 +518,14 @@ export function LandingPage() {
                                 onClick={() => setViewMode("list")}
                                 className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm mb-6 transition-colors"
                             >
-                                <ArrowRight className="h-4 w-4 rotate-180" />
-                                Back to list
-                            </button>
-                            <h2 className="text-3xl font-bold mb-2">Add Data Source</h2>
-                            <p className="text-muted-foreground">
-                                Connect a new Veeam platform to your console.
-                            </p>
+                                <ArrowRight className="h-4 w-4 rotate-180" />{t("Back to list")}</button>
+                            <h2 className="text-3xl font-bold mb-2">{t("Add Data Source")}</h2>
+                            <p className="text-muted-foreground">{t("Connect a new Veeam platform to your console.")}</p>
                         </div>
 
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <Label>Platform Type</Label>
+                                <Label>{t("Platform Type")}</Label>
                                 <div className="grid grid-cols-1 gap-3">
                                     <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as PlatformType)}>
                                         <SelectTrigger className="h-12">
@@ -793,7 +544,7 @@ export function LandingPage() {
                                                                 </span>
                                                                 <span>
                                                                     {platformInfo[type].name}
-                                                                    {isConfigured && " (Configured)"}
+                                                                    {isConfigured && ` (${t("Configured")})`}
                                                                 </span>
                                                             </div>
                                                         </SelectItem>
@@ -805,7 +556,7 @@ export function LandingPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Server Address</Label>
+                                <Label>{t("Server Address")}</Label>
                                 <div className="flex gap-2">
                                     <div className="flex-1 relative">
                                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium z-10 pointer-events-none">
@@ -849,13 +600,11 @@ export function LandingPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Hostname/IP and Port.
-                                </p>
+                                <p className="text-xs text-muted-foreground">{t("Hostname/IP and Port.")}</p>
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Display Name (Optional)</Label>
+                                <Label>{t("Display Name (Optional)")}</Label>
                                 <Input
                                     className="h-12"
                                     placeholder={platformInfo[newSourceType].name}
@@ -868,9 +617,7 @@ export function LandingPage() {
                                 onClick={handleAddSource}
                                 disabled={!newSourceHostname.trim()}
                                 className="w-full h-12 bg-[#00b336] hover:bg-[#00a030] text-lg font-medium"
-                            >
-                                Add Source
-                            </Button>
+                            >{t("Add Source")}</Button>
                         </div>
                     </div>
 
@@ -878,8 +625,7 @@ export function LandingPage() {
 
                 {/* Footer */}
                 <div className="mt-12 text-center">
-                    <p className="text-xs text-muted-foreground">
-                        Made by Jorge de la Cruz, MIT License. Built for the Community with <span className="text-red-500">❤️</span>
+                    <p className="text-xs text-muted-foreground">{t("Made by Jorge de la Cruz, MIT License. Built for the Community with")}<span className="text-red-500">❤️</span>
                     </p>
                 </div>
             </div>
@@ -888,15 +634,13 @@ export function LandingPage() {
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit Data Source</DialogTitle>
-                        <DialogDescription>
-                            Update the connection details for this platform.
-                        </DialogDescription>
+                        <DialogTitle>{t("Edit Data Source")}</DialogTitle>
+                        <DialogDescription>{t("Update the connection details for this platform.")}</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Server Address</Label>
+                            <Label>{t("Server Address")}</Label>
                             <div className="flex gap-2">
                                 <div className="flex-1 relative">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium z-10 pointer-events-none">
@@ -934,7 +678,7 @@ export function LandingPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Display Name</Label>
+                            <Label>{t("Display Name")}</Label>
                             <Input
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
@@ -943,12 +687,8 @@ export function LandingPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleEditSource} disabled={!editHostname.trim()}>
-                            Save Changes
-                        </Button>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>{t("Cancel")}</Button>
+                        <Button onClick={handleEditSource} disabled={!editHostname.trim()}>{t("Save Changes")}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -957,10 +697,8 @@ export function LandingPage() {
             <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Connect to {dataSources.find(ds => ds.id === authState.sourceId)?.name}</DialogTitle>
-                        <DialogDescription>
-                            Enter your credentials to authenticate.
-                        </DialogDescription>
+                        <DialogTitle>{t("Connect to {name}", { name: dataSources.find(ds => ds.id === authState.sourceId)?.name || "" })}</DialogTitle>
+                        <DialogDescription>{t("The application server connects to this system. Your phone does not need access to its private network.")}</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
@@ -972,9 +710,9 @@ export function LandingPage() {
                         )}
 
                         <div className="space-y-2">
-                            <Label>Username</Label>
+                            <Label>{t("Username")}</Label>
                             <Input
-                                placeholder="domain\\username or username"
+                                placeholder={t("domain\\\\username or username")}
                                 value={authState.username}
                                 onChange={(e) => setAuthState(prev => ({ ...prev, username: e.target.value }))}
                                 disabled={authState.loading}
@@ -982,7 +720,7 @@ export function LandingPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Password</Label>
+                            <Label>{t("Password")}</Label>
                             <div className="relative">
                                 <Input
                                     type={showPassword ? "text" : "password"}
@@ -1004,9 +742,7 @@ export function LandingPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setAuthDialogOpen(false)} disabled={authState.loading}>
-                            Cancel
-                        </Button>
+                        <Button variant="outline" onClick={() => setAuthDialogOpen(false)} disabled={authState.loading}>{t("Cancel")}</Button>
                         <Button
                             onClick={handleAuthenticate}
                             disabled={authState.loading || !authState.username || !authState.password}
@@ -1014,11 +750,9 @@ export function LandingPage() {
                         >
                             {authState.loading ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Connecting...
-                                </>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("Connecting...")}</>
                             ) : (
-                                "Connect"
+                                t("Connect")
                             )}
                         </Button>
                     </DialogFooter>

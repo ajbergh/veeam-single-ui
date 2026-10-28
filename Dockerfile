@@ -30,6 +30,9 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Used only when the optional HTTPS launcher generates its first certificate.
+RUN apk add --no-cache openssl
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -41,6 +44,8 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/scripts/https-server.cjs ./scripts/https-server.cjs
+COPY --from=builder /app/lib/server/tls-runtime.cjs ./lib/server/tls-runtime.cjs
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
@@ -48,6 +53,7 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
+EXPOSE 3443
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

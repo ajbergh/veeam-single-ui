@@ -1,4 +1,6 @@
 "use client"
+import { useI18n } from '@/components/providers/i18n-provider'
+
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -50,6 +52,8 @@ const STATUSES = [
 ]
 
 export function AlarmsFilterBar() {
+  const { t: uiText } = useI18n()
+
     const router = useRouter()
     const searchParams = useSearchParams()
     const scrolled = useScroll(80)
@@ -130,7 +134,7 @@ export function AlarmsFilterBar() {
                         <Input
                             id="search-input"
                             type="search"
-                            placeholder="Search..."
+                            placeholder={uiText("Search...")}
                             className="pl-8 w-[250px] h-9"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}

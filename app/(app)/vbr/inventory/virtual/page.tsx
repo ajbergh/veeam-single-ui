@@ -1,18 +1,11 @@
-"use client"
+import { VirtualOperations } from '@/components/virtual-infrastructure/virtual-operations'
+import { getRequestI18n } from '@/lib/i18n/server'
 
-import { VirtualInfrastructureTable } from "@/components/virtual-infrastructure-table"
+export async function generateMetadata() {
+  const { t } = await getRequestI18n()
+  return { title: `${t('Virtual Infrastructure')} | Open Backup UI` }
+}
 
 export default function VirtualInfrastructurePage() {
-    return (
-        <div className="container mx-auto py-8 px-4 space-y-8">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight">Virtual Infrastructure</h2>
-                <p className="text-muted-foreground">
-                    View and manage your virtual infrastructure inventory (VMs, Hosts, Datacenters).
-                </p>
-            </div>
-
-            <VirtualInfrastructureTable />
-        </div>
-    )
+    return <VirtualOperations />
 }
