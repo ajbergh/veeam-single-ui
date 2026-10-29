@@ -3,7 +3,7 @@ const { app, BrowserWindow, dialog, utilityProcess, session, Menu } = require('e
 const launchStarted = performance.now();
 const path = require('node:path');
 const fs = require('node:fs');
-const { availablePort } = require('./runtime.cjs');
+const { availablePort, backendPaths } = require('./runtime.cjs');
 const crypto = require('node:crypto');
 const http = require('node:http');
 
@@ -72,11 +72,13 @@ async function launch() {
   fs.writeFileSync(portFile, JSON.stringify({ port }));
   const token = crypto.randomBytes(32).toString('hex');
   const root = app.isPackaged ? path.join(process.resourcesPath, 'server.asar') : path.resolve(__dirname, '../server.asar');
+  const backend = backendPaths(root, runtime);
   markStartup('backendForkedMs');
   server = utilityProcess.fork(path.join(__dirname, 'server.cjs'), [], {
-    cwd: runtime, stdio: 'pipe', serviceName: 'Open Backup UI backend',
+    cwd: backend.cwd, stdio: 'pipe', serviceName: 'Open Backup UI backend',
     env: { ...process.env, NODE_ENV: 'production', HOSTNAME: '127.0.0.1', PORT: String(port),
       OPEN_BACKUP_UI_SERVER_ROOT: root, OPEN_BACKUP_UI_DESKTOP_TOKEN: token,
+      OPEN_BACKUP_UI_DATA_DIR: backend.dataDirectory,
       ENCRYPTION_KEY: fs.readFileSync(keyFile, 'utf8').trim(), NEXT_TELEMETRY_DISABLED: '1' },
   });
   server.stdout.on('data', chunk => log.write(chunk));

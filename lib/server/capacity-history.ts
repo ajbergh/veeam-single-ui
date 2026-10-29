@@ -12,7 +12,7 @@ const globalHistory=globalThis as typeof globalThis & {capacityHistoryQueues?:Ma
 const queues = globalHistory.capacityHistoryQueues ||= new Map<string,Promise<Observation[]>>()
 export async function recordCapacity(scope:string, repositories:OperationRepository[]):Promise<Observation[]> {
   if(!/^[a-f0-9]{64}$/.test(scope)) throw new Error('Invalid history scope')
-  const directory=path.join(process.cwd(),'data','capacity-history'), file=path.join(directory,`${scope}.json`)
+  const directory=path.join(process.env?.OPEN_BACKUP_UI_DATA_DIR || path.join(process.cwd(),'data'),'capacity-history'), file=path.join(directory,`${scope}.json`)
   const previous=queues.get(scope)
   const work=(async()=>{
     if(previous) await previous.catch(()=>undefined)

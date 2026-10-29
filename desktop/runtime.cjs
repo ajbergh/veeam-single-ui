@@ -1,5 +1,12 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const net = require('node:net');
+const path = require('node:path');
+
+function backendPaths(serverRoot, userData, paths = path) {
+  // Next joins cwd with a relative project path, which cannot cross drives.
+  // Keep cwd beside the archive and persist data explicitly in the user profile.
+  return { cwd: paths.dirname(paths.resolve(serverRoot)), dataDirectory: paths.join(paths.resolve(userData), 'data') };
+}
 
 function availablePort(preferred = 0) {
   const requested = Number.isInteger(preferred) && preferred >= 1024 && preferred <= 65535 ? preferred : 0;
@@ -16,4 +23,4 @@ function availablePort(preferred = 0) {
   });
 }
 
-module.exports = { availablePort };
+module.exports = { availablePort, backendPaths };

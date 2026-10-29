@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { encrypt, decrypt, ENCRYPTION_KEY, LEGACY_DEFAULT_KEY } from './encryption';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env?.OPEN_BACKUP_UI_DATA_DIR || path.join(process.cwd(), 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'sources.json');
 
 // Ensure data directory exists

@@ -2,7 +2,21 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
-const { availablePort } = require('../desktop/runtime.cjs');
+const path = require('node:path');
+const { availablePort, backendPaths } = require('../desktop/runtime.cjs');
+
+test('backend manifests resolve when the archive and writable profile are on different Windows drives', () => {
+  for (const [root, profile] of [
+    ['C:\\Temp\\portable\\resources\\server.asar', 'D:\\profiles\\desktop'],
+    ['D:\\Programs\\Open Backup UI\\resources\\server.asar', 'C:\\Users\\test\\AppData\\Roaming\\Open Backup UI'],
+  ]) {
+    const backend = backendPaths(root, profile, path.win32);
+    const project = path.win32.join(backend.cwd, path.win32.relative(backend.cwd, root));
+    assert.equal(project, root, 'Next must be able to reconstruct its project path with join(cwd, relativePath)');
+    assert.equal(backend.dataDirectory, path.win32.join(profile, 'data'));
+    assert.notEqual(path.win32.parse(backend.cwd).root, path.win32.parse(backend.dataDirectory).root);
+  }
+});
 
 test('desktop reuses its previous local origin when the port is available', async () => {
   const port = await availablePort();

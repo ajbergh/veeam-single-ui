@@ -105,6 +105,9 @@ preferences there. Back up this directory, including `encryption-key`, before
 moving or upgrading. Installer upgrades and uninstall preserve it. Portable
 means no installation; its user data still lives in AppData and is not carried
 alongside the EXE. Existing web-server data is not migrated automatically.
+Application files and writable user data may live on different Windows drives;
+desktop stores use the profile's data directory independently of the backend's
+working directory.
 
 The bundled backend listens only on `127.0.0.1` on an available port. Each
 launch generates an access secret supplied by the desktop session. Requests

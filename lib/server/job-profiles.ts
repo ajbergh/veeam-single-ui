@@ -8,7 +8,7 @@ import { TopologyRequestError } from '../topology/load'
 
 const storeSchema=z.object({version:z.literal(1),sources:z.record(z.string(),z.array(profileSchema).max(200))}).strict()
 export class JobProfileStore {
-  constructor(private file=path.join(process.cwd(),'data','job-profiles.json')){}
+  constructor(private file=path.join(process.env?.OPEN_BACKUP_UI_DATA_DIR || path.join(process.cwd(),'data'),'job-profiles.json')){}
   private async read() {
     try{return storeSchema.parse(JSON.parse(await fs.readFile(this.file,'utf8')))}
     catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return {version:1 as const,sources:{} as Record<string,Profile[]>};throw e}

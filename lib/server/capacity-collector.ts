@@ -13,7 +13,7 @@ import {utilization} from '../operations/model'
 import {COLLECTION_INTERVAL,collectorDue,presentCollector,type CollectorStatus} from '../forecast/collector'
 
 const statusSchema=z.object({state:z.enum(['waiting','running','healthy','partial','error','disabled','unsupported','stale']),intervalMinutes:z.number(),lastAttempt:z.string().nullable(),lastSuccess:z.string().nullable(),nextAttempt:z.string().nullable(),repositories:z.number(),measured:z.number(),message:z.string()})
-const directory=path.join(process.cwd(),'data','capacity-collector')
+const directory=path.join(process.env?.OPEN_BACKUP_UI_DATA_DIR || path.join(process.cwd(),'data'),'capacity-collector')
 const enabled=()=>process.env.CAPACITY_COLLECTOR_ENABLED!=='false'
 const statusPath=(scope:string)=>{if(!/^[a-f0-9]{64}$/.test(scope))throw new Error('Invalid collector scope');return path.join(directory,`${scope}.json`)}
 async function readStatus(scope:string):Promise<CollectorStatus|null> {
