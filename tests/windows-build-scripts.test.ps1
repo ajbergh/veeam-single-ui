@@ -80,3 +80,8 @@ finally {
     }
     Remove-Item -LiteralPath $resolvedTestDirectory -Recurse -Force
 }
+
+# Expected native failures leave LASTEXITCODE set even when they are caught.
+# GitHub Actions forwards that value after dot-sourcing this script.
+# Reach success only after every assertion and cleanup has completed.
+exit 0
