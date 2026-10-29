@@ -40,7 +40,7 @@ async function main() {
         }
       } catch { /* The app creates its log after Electron starts. */ }
     }, 100);
-    const child = spawn(executable, ['--desktop-smoke-test', `--desktop-smoke-dir=${directory}`, ...(veeam ? [`--desktop-smoke-veeam=${veeam.url}`] : [])], {
+    const child = spawn(executable, ['--desktop-smoke-test', `--desktop-smoke-dir=${directory}`, ...(process.argv.includes('--small-window') ? ['--desktop-smoke-small-window'] : []), ...(veeam ? [`--desktop-smoke-veeam=${veeam.url}`] : [])], {
       windowsHide: true, stdio: 'inherit', env: cleanEnvironment,
     });
     const code = await new Promise((resolve, reject) => {
@@ -81,6 +81,12 @@ async function main() {
     });
     assert.equal(reachable, false, 'The backend must stop when the desktop app exits');
     console.log(`Desktop smoke test passed: renderer, API, access isolation, user storage and shutdown (${directory}).`);
+  } catch (error) {
+    for (const filename of ['smoke-error.txt', 'desktop.log', 'startup-timings.json']) {
+      const file = path.join(directory, filename);
+      if (fs.existsSync(file)) console.error(`Desktop diagnostics (${file}):\n${fs.readFileSync(file, 'utf8').split(/\r?\n/).slice(-100).join('\n')}`);
+    }
+    throw error;
   } finally { clearInterval(startupObserver); if (veeam) await veeam.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

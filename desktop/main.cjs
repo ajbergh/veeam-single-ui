@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const http = require('node:http');
 
 const smokeTest = process.argv.includes('--desktop-smoke-test');
+if (smokeTest) app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 const smokeDirectory = process.argv.find(value => value.startsWith('--desktop-smoke-dir='));
 if (smokeTest && smokeDirectory) app.setPath('userData', path.resolve(smokeDirectory.slice('--desktop-smoke-dir='.length)));
 
@@ -39,7 +40,7 @@ async function launch() {
   const networkReady = desktopSession.setProxy({ mode: process.env.OPEN_BACKUP_UI_USE_SYSTEM_PROXY === '1' ? 'system' : 'direct' })
     .then(() => markStartup('proxyConfiguredMs'));
   networkReady.catch(() => {});
-  window = new BrowserWindow({ width: 1440, height: 960, minWidth: 900, minHeight: 600,
+  window = new BrowserWindow({ width: smokeTest && process.argv.includes('--desktop-smoke-small-window') ? 900 : 1440, height: 960, minWidth: 900, minHeight: 600,
     title: 'Open Backup UI', show: true, backgroundColor: '#090b0e', autoHideMenuBar: true,
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false,
@@ -118,6 +119,9 @@ async function launch() {
   fs.writeFileSync(path.join(runtime, 'startup-timings.json'), JSON.stringify(startup, null, 2));
   // CI smoke testing exercises the actual packaged backend and renderer.
   if (smokeTest) {
+    // Hosted Windows desktops can clamp this window below the carousel's
+    // 1024px breakpoint. Exercise the desktop layout at a consistent CSS width.
+    window.webContents.setZoomFactor(Math.min(1, window.getContentBounds().width / 1200));
     const page = await window.webContents.executeJavaScript(`document.fonts.ready.then(() => ({text:document.body.innerText, scripts:document.querySelectorAll('script[src*="/_next/static/"]').length}))`);
     log.write('[Desktop] Renderer responded.\n');
     if (page.text.trim().length < 30 || page.text.includes('Application error') || page.scripts === 0) {
@@ -127,12 +131,18 @@ async function launch() {
       // The carousel adds its first image after React mounts and checks the viewport.
       for (let attempt = 0; attempt < 150; attempt++) {
         const images = [...document.images].filter(image => image.loading !== 'lazy');
-        if (images.length) return Promise.all(images.map(image => image.decode().then(() => true, () => false)));
+        if (images.length) return Promise.race([
+          Promise.all(images.map(image => image.decode().then(() => true, () => false))),
+          new Promise(resolve => setTimeout(() => resolve(images.map(() => false)), 15000)),
+        ]);
         await new Promise(resolve => setTimeout(resolve, 200));
       }
       return [];
     })()`);
-    if (images.length === 0 || images.some(loaded => !loaded)) throw new Error(`Bundled application images did not load: ${JSON.stringify(images)}`);
+    if (images.length === 0 || images.some(loaded => !loaded)) {
+      const viewport = await window.webContents.executeJavaScript(`({width:innerWidth,height:innerHeight,desktop:matchMedia('(min-width: 1024px)').matches,visibility:document.visibilityState,images:[...document.images].map(image=>({src:image.currentSrc,complete:image.complete,width:image.naturalWidth}))})`);
+      throw new Error(`Bundled application images did not load: ${JSON.stringify({ images, viewport })}`);
+    }
     const result = await window.webContents.executeJavaScript(`fetch('/api/config/sources').then(async r => ({status:r.status, body:await r.text()}))`);
     if (result.status !== 200) throw new Error(`Packaged API smoke test failed: ${result.status}`);
     const denied = await new Promise((resolve, reject) => {

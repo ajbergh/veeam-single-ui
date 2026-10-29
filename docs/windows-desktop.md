@@ -127,3 +127,5 @@ Build icons are generated from `desktop/assets/icon.svg` during staging. The gre
 To verify Veeam certificate compatibility against a local self-signed HTTPS fixture, run `node scripts/smoke-windows.cjs unpacked tmp/self-signed-veeam --self-signed-veeam`. This requires OpenSSL on the build machine (or `OPENSSL_BIN` pointing to it), tests both first-time and saved-source authentication plus an API read, and uses only an isolated smoke-test profile.
 
 Smoke output includes timings observed from EXE launch as well as internal application timings. The launch observations include portable extraction and Windows process startup; use them when investigating a delay before the window appears. The installed application avoids portable extraction on each launch.
+
+The smoke test normalizes its CSS viewport so the desktop carousel is exercised even on small hosted Windows displays, and disables occluded-window backgrounding only in test mode. Use `--small-window` to reproduce a 900-pixel physical test window. Failures print the desktop logs and renderer details; CI also uploads desktop diagnostics on failure.
