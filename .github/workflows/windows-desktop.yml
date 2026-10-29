@@ -22,6 +22,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Test PowerShell build wrappers
+        shell: powershell
+        run: .\tests\windows-build-scripts.test.ps1
       - run: npm ci
       - run: npm test
       - run: npm run desktop:dist
@@ -29,6 +32,11 @@ jobs:
         run: node scripts/smoke-windows.cjs unpacked tmp/startup-profile
       - name: Measure repeat startup
         run: node scripts/smoke-windows.cjs unpacked tmp/startup-profile
+      - name: Test self-signed Veeam connections in the packaged application
+        shell: pwsh
+        run: |
+          $env:OPENSSL_BIN = 'C:\Program Files\Git\usr\bin\openssl.exe'
+          node scripts/smoke-windows.cjs unpacked tmp/self-signed-veeam --self-signed-veeam
       - name: Test single-file portable application
         run: node scripts/smoke-windows.cjs portable
       - name: Test installer and uninstaller

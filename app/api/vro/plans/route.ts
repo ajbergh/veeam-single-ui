@@ -67,3 +67,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+import { veeamFetch as fetch } from '@/lib/server/veeam-transport';

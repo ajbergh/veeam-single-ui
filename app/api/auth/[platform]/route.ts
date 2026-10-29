@@ -4,6 +4,7 @@ import { setChunkedCookie, deleteChunkedCookie } from "@/lib/utils/cookie-manage
 import { configStore, VBRSource } from "@/lib/server/config-store"
 import { tokenManager } from "@/lib/server/token-manager"
 import { isSecureApplicationRequest } from '@/lib/server/request-origin'
+import { veeamFetch } from '@/lib/server/veeam-transport'
 
 // Platform-specific auth configurations
 const platformConfigs = {
@@ -252,7 +253,7 @@ export async function POST(
             formData.append("grant_type", config.grantType)
             formData.append("username", resolvedUsername)
             formData.append("password", resolvedPassword)
-            authResponse = await fetch(`${baseUrl}${config.authPath}`, {
+            authResponse = await veeamFetch(`${baseUrl}${config.authPath}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData.toString()

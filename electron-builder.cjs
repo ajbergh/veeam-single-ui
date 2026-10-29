@@ -8,14 +8,17 @@ module.exports = {
   productName: 'Open Backup UI',
   directories: { app: 'build/desktop/app', output: 'artifacts/windows' },
   asar: true,
-  files: ['main.cjs', 'server.cjs', 'runtime.cjs', 'startup.html', 'package.json', 'LICENSE', '!node_modules/**'],
+  files: ['main.cjs', 'server.cjs', 'runtime.cjs', 'startup.html', 'assets/**/*', 'package.json', 'LICENSE', '!node_modules/**'],
   extraResources: [{ from: 'build/desktop', to: '.', filter: ['server.asar', 'server.asar.unpacked/**/*'] }],
   win: { target: [{ target: 'nsis', arch: ['x64'] }, { target: 'portable', arch: ['x64'] }],
-    icon: 'public/icon-512.png', executableName: 'Open Backup UI' },
+    icon: 'desktop/assets/icon.ico', executableName: 'Open Backup UI' },
   nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true, createStartMenuShortcut: true,
-    deleteAppDataOnUninstall: false, artifactName: 'Open-Backup-UI-${version}-Setup-${arch}.${ext}' },
-  portable: { artifactName: 'Open-Backup-UI-${version}-Portable-${arch}.${ext}' },
+    deleteAppDataOnUninstall: false, installerIcon: 'desktop/assets/icon.ico', uninstallerIcon: 'desktop/assets/icon.ico',
+    artifactName: 'Open-Backup-UI-${version}-Setup-${arch}.${ext}' },
+  // NSIS plugin directories are unique for each launch, so a second launcher
+  // cannot remove the runtime files of an already running portable instance.
+  portable: { unpackDirName: true, artifactName: 'Open-Backup-UI-${version}-Portable-${arch}.${ext}' },
   publish: null,
   afterPack: async ({ appOutDir }) => {
     const archive = path.join(appOutDir, 'resources', 'server.asar');

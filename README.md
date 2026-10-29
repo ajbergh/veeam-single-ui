@@ -102,7 +102,7 @@ It bundles the application and runtime; end users do not need Node.js or Docker.
 
 ### Requirements
 
-- Node.js 20 or later and npm. The local v1.0 build was checked with Node.js 22.
+- Node.js 20.18.1 or later and npm. The local v1.0 build was checked with Node.js 22.
 - Network access **from the application server** to the supported platform APIs.
 - Appropriate platform credentials and a persistent, writable `data/` directory.
 
@@ -160,7 +160,7 @@ Use a persistent Node server or container for unattended capacity collection. Pe
 
 Capacity planning uses a server-memory cache scoped to the authenticated source and principal. Saved VBR connections refresh their planning evidence in the background every 30 minutes, even with the browser closed. The page shows the snapshot time and refresh state; **Refresh** requests current evidence immediately. Transient refresh failures retain the previous snapshot with a visible warning. The cache rebuilds after a server restart. Browser-only sessions can use the cache while connected but cannot refresh unattended; `CAPACITY_COLLECTOR_ENABLED=false` disables both background planning refresh and physical-capacity collection.
 
-**Access and TLS:** the app can use saved platform credentials and perform management actions. Put shared instances behind an authenticated access layer. The existing `npm start` script disables outbound TLS certificate verification; review the [deployment guide](docs/deployment.md) before production use. A phone only needs access to this web app, not to the backup servers.
+**Access and TLS:** the app can use saved platform credentials and perform management actions. Put shared instances behind an authenticated access layer. Configured Veeam servers accept self-signed certificates automatically; other HTTPS connections retain certificate validation. See the [deployment guide](docs/deployment.md) for strict verification. A phone only needs access to this web app, not to the backup servers.
 
 [Deployment, remote access, environment variables, and data handling](docs/deployment.md) · [Container instructions](CONTAINER.md)
 

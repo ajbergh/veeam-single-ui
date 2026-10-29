@@ -24,40 +24,63 @@ async function main() {
   // Exercise a machine without development runtimes on PATH.
   const pathKey = Object.keys(cleanEnvironment).find(key => key.toLowerCase() === 'path') || 'Path';
   cleanEnvironment[pathKey] = `${process.env.SystemRoot}\\System32;${process.env.SystemRoot}`;
-  const launched = Date.now();
-  const child = spawn(executable, ['--desktop-smoke-test', `--desktop-smoke-dir=${directory}`], {
-    windowsHide: true, stdio: 'inherit', env: cleanEnvironment,
-  });
-  const code = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      // Kill the test's own process tree, including a bundled backend, on timeout.
-      if (process.platform === 'win32') spawn(path.join(process.env.SystemRoot, 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-      else child.kill();
-      reject(new Error(`Desktop smoke test timed out. See ${directory}`));
-    }, 240000);
-    child.once('error', error => { clearTimeout(timeout); reject(error); });
-    child.once('exit', value => { clearTimeout(timeout); resolve(value); });
-  });
-  assert.equal(code, 0, `Desktop failed. See ${directory}`);
-  const result = JSON.parse(fs.readFileSync(path.join(directory, 'smoke-test.json'), 'utf8'));
-  if (result.startup) console.log(`Startup timings: ${JSON.stringify(result.startup)}; complete smoke test: ${Date.now() - launched}ms`);
-  assert.equal(result.ok, true);
-  assert.equal(result.apiStatus, 200);
-  assert.equal(result.unauthorizedStatus, 403);
-  if (result.startup) {
-    assert.ok(result.startup.windowVisibleMs < result.startup.backendReadyMs, 'Show the window while the backend starts');
-    assert.ok(result.startup.windowVisibleMs < result.startup.pageLoadedMs, 'Do not hide the window until all page resources load');
-  }
-  assert.ok(fs.existsSync(path.join(directory, 'encryption-key')));
-  // The API initializes its credential store under the user's writable directory.
-  assert.ok(fs.existsSync(path.join(directory, 'data')));
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const reachable = await new Promise(resolve => {
-    const socket = net.connect(result.port, '127.0.0.1');
-    socket.once('connect', () => { socket.destroy(); resolve(true); });
-    socket.once('error', () => resolve(false));
-  });
-  assert.equal(reachable, false, 'The backend must stop when the desktop app exits');
-  console.log(`Desktop smoke test passed: renderer, API, access isolation, user storage and shutdown (${directory}).`);
+  const veeam = process.argv.includes('--self-signed-veeam') ? await require('./veeam-smoke-fixture.cjs')(directory) : null;
+  let startupObserver;
+  try {
+    const launched = Date.now();
+    const observedStartup = {};
+    // Include portable extraction and OS launch time in startup observations.
+    startupObserver = setInterval(() => {
+      try {
+        const filename = path.join(directory, 'desktop.log');
+        if (fs.statSync(filename).mtimeMs < launched) return;
+        const log = fs.readFileSync(filename, 'utf8');
+        for (const phase of ['windowVisibleMs', 'pageLoadedMs']) {
+          if (observedStartup[phase] === undefined && log.includes(`[Startup] ${phase}:`)) observedStartup[phase] = Date.now() - launched;
+        }
+      } catch { /* The app creates its log after Electron starts. */ }
+    }, 100);
+    const child = spawn(executable, ['--desktop-smoke-test', `--desktop-smoke-dir=${directory}`, ...(veeam ? [`--desktop-smoke-veeam=${veeam.url}`] : [])], {
+      windowsHide: true, stdio: 'inherit', env: cleanEnvironment,
+    });
+    const code = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        // Kill the test's own process tree, including a bundled backend, on timeout.
+        if (process.platform === 'win32') spawn(path.join(process.env.SystemRoot, 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+        else child.kill();
+        reject(new Error(`Desktop smoke test timed out. See ${directory}`));
+      }, 240000);
+      child.once('error', error => { clearTimeout(timeout); reject(error); });
+      child.once('exit', value => { clearTimeout(timeout); resolve(value); });
+    });
+    assert.equal(code, 0, `Desktop failed. See ${directory}`);
+    const result = JSON.parse(fs.readFileSync(path.join(directory, 'smoke-test.json'), 'utf8'));
+    if (result.startup) console.log(`Startup timings: ${JSON.stringify(result.startup)}; observed from EXE launch: ${JSON.stringify(observedStartup)}; complete smoke test: ${Date.now() - launched}ms`);
+    assert.equal(result.ok, true);
+    assert.equal(result.apiStatus, 200);
+    assert.equal(result.unauthorizedStatus, 403);
+    if (veeam) {
+      assert.equal(result.veeamStatus, 200);
+      for (const endpoint of ['/api/oauth2/token', '/api/token', '/api/v1/license']) {
+        assert.ok(veeam.requests.some(request => request.path === endpoint), `Packaged backend must reach self-signed Veeam ${endpoint}`);
+      }
+      console.log('Self-signed Veeam smoke test passed: saved-source login, first-time login and API read.');
+    }
+    if (result.startup) {
+      assert.ok(result.startup.windowVisibleMs < result.startup.backendReadyMs, 'Show the window while the backend starts');
+      assert.ok(result.startup.windowVisibleMs < result.startup.pageLoadedMs, 'Do not hide the window until all page resources load');
+    }
+    assert.ok(fs.existsSync(path.join(directory, 'encryption-key')));
+    // The API initializes its credential store under the user's writable directory.
+    assert.ok(fs.existsSync(path.join(directory, 'data')));
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const reachable = await new Promise(resolve => {
+      const socket = net.connect(result.port, '127.0.0.1');
+      socket.once('connect', () => { socket.destroy(); resolve(true); });
+      socket.once('error', () => resolve(false));
+    });
+    assert.equal(reachable, false, 'The backend must stop when the desktop app exits');
+    console.log(`Desktop smoke test passed: renderer, API, access isolation, user storage and shutdown (${directory}).`);
+  } finally { clearInterval(startupObserver); if (veeam) await veeam.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

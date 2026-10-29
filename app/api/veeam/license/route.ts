@@ -51,9 +51,7 @@ export async function GET(request: NextRequest) {
                 'Authorization': `Bearer ${token}`,
                 'x-api-version': '1.3-rev1',
                 'Accept': 'application/json'
-            },
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            agent: new (require('https').Agent)({ rejectUnauthorized: false })
+            }
         } as RequestInit);
 
         // Auto-refresh mechanism
@@ -67,9 +65,7 @@ export async function GET(request: NextRequest) {
                         'Authorization': `Bearer ${newToken}`,
                         'x-api-version': '1.3-rev1',
                         'Accept': 'application/json'
-                    },
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    agent: new (require('https').Agent)({ rejectUnauthorized: false })
+                    }
                 } as RequestInit);
             }
         }

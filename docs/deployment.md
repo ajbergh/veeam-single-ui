@@ -12,7 +12,7 @@ npm start
 
 The source download excludes dependencies and build output. Install dependencies on each new machine with `npm ci`; ordinary `npm install` is also supported without peer-dependency bypasses. The build uses Next.js standalone output; [container instructions](../CONTAINER.md) describe the Docker image.
 
-**Current TLS behavior:** `npm start` explicitly sets `NODE_TLS_REJECT_UNAUTHORIZED=0`, disabling certificate verification for outbound Node.js TLS requests. Setting that variable outside the script does not remove its override. Review the script and trust configuration before production use. The container starts `node server.js` directly, so it does not execute that script; some older platform adapters also have local-certificate handling that should be included in a deployment review.
+**Outbound TLS:** configured Veeam endpoints accept self-signed certificates automatically. Other HTTPS connections retain normal certificate validation. Set `VEEAM_TLS_VERIFY=1` and configure `NODE_EXTRA_CA_CERTS` if strict Veeam certificate verification is required. This policy applies to desktop, web, and container deployments.
 
 **Incoming HTTPS:** `npm run start:https` starts an optional HTTPS listener in front of the production server. Its first startup creates a unique self-signed certificate; **Administration → Settings → HTTPS & certificates** can replace it with a matching PEM certificate/key and intermediate chain. The launcher does not disable outbound TLS verification. Certificate uploads require a server-configured administrator token and must pass through the managed HTTPS listener. Existing reverse-proxy deployments can continue managing their certificates outside the app. See [HTTPS setup and recovery](https.md).
 

@@ -41,7 +41,11 @@ async function launch() {
   networkReady.catch(() => {});
   window = new BrowserWindow({ width: 1440, height: 960, minWidth: 900, minHeight: 600,
     title: 'Open Backup UI', show: true, backgroundColor: '#090b0e', autoHideMenuBar: true,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false },
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false,
+      // Automated GUI launches can be hidden/occluded by Windows. Keep their
+      // renderer active so hydration and image decoding can finish reliably.
+      backgroundThrottling: !smokeTest },
   });
   markStartup('windowCreatedMs');
   markStartup('windowVisibleMs');
@@ -135,8 +139,25 @@ async function launch() {
       http.get(`${origin}/api/config/sources`, response => { response.resume(); resolve(response.statusCode); }).on('error', reject);
     });
     if (denied !== 403) throw new Error(`Unauthenticated local request returned ${denied}, expected 403.`);
+    let veeamStatus;
+    const veeamArgument = process.argv.find(value => value.startsWith('--desktop-smoke-veeam='));
+    if (veeamArgument) {
+      const veeamUrl = veeamArgument.slice('--desktop-smoke-veeam='.length);
+      if (new URL(veeamUrl).hostname !== '127.0.0.1' || new URL(veeamUrl).protocol !== 'https:') throw new Error('Veeam smoke fixture must use local HTTPS.');
+      const checks = await window.webContents.executeJavaScript(`(async () => {
+        const body = JSON.stringify({url:${JSON.stringify(veeamUrl)}, username:'smoke-test', password:'local-fixture-only'});
+        const statuses = [];
+        for (const platform of ['one', 'vbr']) {
+          statuses.push((await fetch('/api/auth/' + platform, {method:'POST', headers:{'Content-Type':'application/json'}, body})).status);
+        }
+        const license = await fetch('/api/veeam/license');
+        return {statuses, status:license.status, data:await license.json()};
+      })()`);
+      if (checks.statuses.some(status => status !== 200) || checks.status !== 200 || checks.data.smokeVeeam !== true) throw new Error(`Self-signed Veeam smoke test failed: ${JSON.stringify(checks)}`);
+      veeamStatus = checks.status;
+    }
     fs.writeFileSync(path.join(runtime, 'smoke-screenshot.png'), (await window.webContents.capturePage()).toPNG());
-    fs.writeFileSync(path.join(runtime, 'smoke-test.json'), JSON.stringify({ ok: true, port, apiStatus: result.status, unauthorizedStatus: denied, startup }));
+    fs.writeFileSync(path.join(runtime, 'smoke-test.json'), JSON.stringify({ ok: true, port, apiStatus: result.status, unauthorizedStatus: denied, veeamStatus, startup }));
     app.quit();
   }
 }

@@ -22,9 +22,7 @@ export async function GET(request: NextRequest) {
             headers: {
                 'Authorization': `Bearer ${config.token}`,
                 'Accept': 'application/json'
-            },
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            agent: new (require('https').Agent)({ rejectUnauthorized: false })
+            }
         } as RequestInit);
 
         if (response.status === 401) {
@@ -35,9 +33,7 @@ export async function GET(request: NextRequest) {
                     headers: {
                         'Authorization': `Bearer ${newToken}`,
                         'Accept': 'application/json'
-                    },
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    agent: new (require('https').Agent)({ rejectUnauthorized: false })
+                    }
                 } as RequestInit);
             }
         }

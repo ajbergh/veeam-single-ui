@@ -21,6 +21,7 @@ async function prepare() {
   fs.cpSync(path.join(root, '.next', 'static'), path.join(target, 'server', '.next', 'static'), { recursive: true });
   fs.cpSync(path.join(root, 'public'), path.join(target, 'server', 'public'), { recursive: true });
   for (const name of ['main.cjs', 'server.cjs', 'runtime.cjs', 'startup.html']) fs.copyFileSync(path.join(root, 'desktop', name), path.join(target, 'app', name));
+  fs.cpSync(path.join(root, 'desktop', 'assets'), path.join(target, 'app', 'assets'), { recursive: true });
   fs.copyFileSync(path.join(root, 'LICENSE'), path.join(target, 'app', 'LICENSE'));
   const pkg = require('../package.json');
   fs.writeFileSync(path.join(target, 'app', 'package.json'), JSON.stringify({

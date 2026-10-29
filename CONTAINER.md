@@ -30,7 +30,6 @@ podman run -d \
   -e VEEAM_API_URL="https://your-vbr-server:9419" \
   -e VEEAM_USERNAME="your-username" \
   -e VEEAM_PASSWORD="your-password" \
-  -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
   open-backup-ui:latest
 ```
 
@@ -49,7 +48,6 @@ podman run -d \
   -e VBM_API_URL="https://your-vbm-server:4443" \
   -e VBM_USERNAME="your-vbm-username" \
   -e VBM_PASSWORD="your-vbm-password" \
-  -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
   open-backup-ui:latest
 ```
 
@@ -90,7 +88,7 @@ docker run -d --name open-backup-ui \
 - `VBM_PASSWORD` - Password for VBM authentication
 
 ### General Settings
-- `NODE_TLS_REJECT_UNAUTHORIZED=0` - Allow self-signed certificates (for lab/development environments only)
+- Veeam self-signed certificates work automatically. Set `VEEAM_TLS_VERIFY=1` to require trusted certificates.
 
 **Note**: At minimum, VBR credentials must be provided. VRO and VBM are optional and their pages will show errors if not configured.
 
@@ -115,7 +113,8 @@ VBM_USERNAME=your-vbm-username
 VBM_PASSWORD=your-vbm-password
 
 # General Settings
-NODE_TLS_REJECT_UNAUTHORIZED=0
+# Optional: require trusted Veeam certificates
+# VEEAM_TLS_VERIFY=1
 ```
 
 Run with environment file:
@@ -207,7 +206,7 @@ trivy image --scanners vuln --input /tmp/open-backup-ui.tar
    ```bash
    podman exec open-backup-ui ping your-vbr-server
    ```
-2. Check if `NODE_TLS_REJECT_UNAUTHORIZED=0` is set for self-signed certificates
+2. Self-signed Veeam certificates are accepted automatically; check the server address and credentials.
 3. Verify credentials are correct and have appropriate permissions
 4. Test API endpoint directly:
    ```bash

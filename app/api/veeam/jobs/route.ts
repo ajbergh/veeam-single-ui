@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const endpoint = queryString ? `/api/v1/jobs?${queryString}` : '/api/v1/jobs';
     const fullUrl = `${baseUrl}${endpoint}`;
 
-    // Use native fetch with NODE_TLS_REJECT_UNAUTHORIZED=0 from env
+    // Native fetch uses the Veeam-specific certificate policy.
     let response = await fetch(fullUrl, {
       method: 'GET',
       headers: {

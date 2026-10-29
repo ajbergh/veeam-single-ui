@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getChunkedCookie } from '@/lib/utils/cookie-manager';
 import { tokenManager } from '@/lib/server/token-manager';
+import { veeamFetch as fetch } from '@/lib/server/veeam-transport';
 
 export const dynamic = 'force-dynamic';
 
